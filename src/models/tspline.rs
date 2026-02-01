@@ -72,13 +72,13 @@ impl TSpline {
     /// res.unwrap_err();
     /// ```
     ///
-    /// Dynamic modifications can be done by boxing the operation:
+    /// Dynamic modifications are also possible:
     /// ```
     /// # use t_spline::operation::*;
     /// # use t_spline::models::*;
     /// let mut spline = TSpline::new_unit_square();
-    /// let dynamic_ptr: &mut dyn SplineOp<Error = ()> = &mut |m: &mut TMesh|{};
-    /// spline.perform(dynamic_ptr);
+    /// let dynamic_ptr: Box<dyn SplineOp<Error=()>>= Box::new(|m: &mut TMesh|{});
+    /// spline.perform(&dynamic_ptr);
     /// ```
     ///
     /// Complex operations should implement [SplineOp].
