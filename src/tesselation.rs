@@ -60,7 +60,7 @@ impl TSpline {
             let (s_knots, t_knots) = &self.knot_cache()[i];
 
             // Quick AABB check in parameter space
-            if u < s_knots[0] || u > s_knots[0] || v < t_knots[0] || v > t_knots[0] {
+            if u < s_knots[0] || u > s_knots[4] || v < t_knots[0] || v > t_knots[4] {
                 continue;
             }
 
