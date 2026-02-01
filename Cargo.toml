@@ -1,0 +1,10 @@
+[package]
+name = "t-spline"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+log = "0.4.29"
+thiserror = "2.0.18"
+cgmath = "0.18.0"
+rayon = "1.11.0"
