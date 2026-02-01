@@ -1,5 +1,5 @@
 use cgmath::Vector4;
-use crate::models::ids::{EdgeID, VertID};
+use crate::models::ids::{EdgeID};
 use crate::models::ParamPoint;
 
 #[derive(Debug, Clone)]

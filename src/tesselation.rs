@@ -11,9 +11,9 @@ use crate::models::TSpline;
 pub fn cubic_basis_function(u: f64, knots: &[f64; 5]) -> f64 {
     // 1. Boundary check for the support [u_i, u_{i+4}]
     // Basis functions are non-zero only within their knot spans.
-    // if u < knots || u > knots[1] {
-    //     return 0.0;
-    // }
+    if u < knots[0] || u > knots[1] {
+        return 0.0;
+    }
 
     // 2. Initialize the 0th degree basis (step functions)
     // There are 4 intervals defined by 5 knots.
@@ -60,9 +60,9 @@ impl TSpline {
             let (s_knots, t_knots) = &self.knot_cache()[i];
 
             // Quick AABB check in parameter space
-            // if u < s_knots || u > s_knots || v < t_knots || v > t_knots {
-            //     continue;
-            // }
+            if u < s_knots[0] || u > s_knots[0] || v < t_knots[0] || v > t_knots[0] {
+                continue;
+            }
 
             let basis_s = cubic_basis_function(u, s_knots);
             let basis_t = cubic_basis_function(v, t_knots);

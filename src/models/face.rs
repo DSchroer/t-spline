@@ -1,4 +1,4 @@
-use crate::models::ids::{EdgeID, FaceID};
+use crate::models::ids::{EdgeID};
 
 #[derive(Debug)]
 #[derive(Clone)]

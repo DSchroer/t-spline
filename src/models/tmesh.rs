@@ -68,8 +68,8 @@ impl TMesh {
         let t_neg = self.trace_knots(v_id, Direction::T, false); // t1, t0
 
         (
-            [s_neg[1], s_neg[1], s2, s_pos[1], s_pos[1]],
-            [t_neg[1], t_neg[1], t2, t_pos[1], t_pos[1]],
+            [s_neg[1], s_neg[0], s2, s_pos[0], s_pos[1]],
+            [t_neg[1], t_neg[0], t2, t_pos[0], t_pos[1]],
         )
     }
 
@@ -223,50 +223,116 @@ impl TMesh {
         None
     }
 
-    /// Validates if the current mesh satisfies ASTS conditions.
-    pub fn validate_asts(&self) -> bool {
-        let h_exts = self.collect_extensions(Direction::S);
-        let v_exts = self.collect_extensions(Direction::T);
+    // // Validates if the current mesh satisfies ASTS conditions.
+    // pub fn validate_asts(&self) -> bool {
+    //     let h_exts = self.collect_extensions(Direction::S);
+    //     let v_exts = self.collect_extensions(Direction::T);
+    //
+    //     for h in &h_exts {
+    //         for v in &v_exts {
+    //             if h.intersects(v) {
+    //                 return false; // Intersection detected!
+    //             }
+    //         }
+    //     }
+    //     true
+    // }
 
-        for h in &h_exts {
-            for v in &v_exts {
-                if h.intersects(v) {
-                    return false; // Intersection detected!
-                }
-            }
-        }
-        true
+    // fn collect_extensions(&self, dir: Direction) -> Vec<Segment> {
+    //     let mut extensions = Vec::new();
+    //
+    //     for (idx, vert) in self.vertices.iter().enumerate() {
+    //         if!vert.is_t_junction { continue; }
+    //
+    //         // Check if T-junction points in 'dir'
+    //         // A T-junction "points" into the face it is missing an edge for.
+    //         // We need logic to determine orientation of the T.
+    //
+    //         if self.t_junction_orientation(VertID(idx)) == dir {
+    //             // Trace ray until it hits a perpendicular full edge
+    //             let start_uv = vert.uv;
+    //             let end_val = self.cast_ray_for_knot(VertID(idx), dir, 2); // heuristic distance
+    //             // Real ASTS tracing must go until it hits a line in the T-mesh
+    //             // that is perpendicular to the extension.
+    //
+    //             let end_uv = match dir {
+    //                 Direction::S => ParamPoint { s: end_val, t: start_uv.t },
+    //                 Direction::T => ParamPoint { s: start_uv.s, t: end_val },
+    //             };
+    //             extensions.push(Segment { start: start_uv, end: end_uv });
+    //         }
+    //     }
+    //     extensions
+    // }
+
+    // fn t_junction_orientation(&self, v: VertID) -> Direction {
+    //     // Logic to inspect neighbors and determine if T points up/down (T) or left/right (S)
+    //     Direction::S // Stub
+    // }
+}
+
+#[cfg(test)]
+mod tests {
+    use cgmath::Vector4;
+    use super::*;
+
+    #[test]
+    fn it_finds_face_edges() {
+        let mesh = unit_square_tmesh();
+
+        let edges = mesh.face_edges(FaceID(0));
+        assert_eq!(4, edges.len()); // find all edges
     }
 
-    fn collect_extensions(&self, dir: Direction) -> Vec<Segment> {
-        let mut extensions = Vec::new();
+    #[test]
+    fn it_can_infer_local_knots() {
+        let mesh = unit_square_tmesh();
 
-        for (idx, vert) in self.vertices.iter().enumerate() {
-            if!vert.is_t_junction { continue; }
-
-            // Check if T-junction points in 'dir'
-            // A T-junction "points" into the face it is missing an edge for.
-            // We need logic to determine orientation of the T.
-
-            if self.t_junction_orientation(VertID(idx)) == dir {
-                // Trace ray until it hits a perpendicular full edge
-                let start_uv = vert.uv;
-                let end_val = self.cast_ray_for_knot(VertID(idx), dir, 2); // heuristic distance
-                // Real ASTS tracing must go until it hits a line in the T-mesh
-                // that is perpendicular to the extension.
-
-                let end_uv = match dir {
-                    Direction::S => ParamPoint { s: end_val, t: start_uv.t },
-                    Direction::T => ParamPoint { s: start_uv.s, t: end_val },
-                };
-                extensions.push(Segment { start: start_uv, end: end_uv });
-            }
-        }
-        extensions
+        let (s_knots, t_knots) = mesh.infer_local_knots(VertID(0));
+        assert_eq!([0., 0., 0., 1., 1.], s_knots);
+        assert_eq!([0., 0., 0., 1., 1.], t_knots);
     }
 
-    fn t_junction_orientation(&self, v: VertID) -> Direction {
-        // Logic to inspect neighbors and determine if T points up/down (T) or left/right (S)
-        Direction::S // Stub
+    pub fn unit_square_tmesh() -> TMesh {
+        let mut mesh = TMesh {
+            vertices: Vec::with_capacity(4),
+            edges: Vec::with_capacity(4),
+            faces: Vec::with_capacity(1),
+        };
+
+        // 1. Define 4 Corner Vertices
+        // Coordinates: (0,0), (1,0), (1,1), (0,1)
+        let coords = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)];
+        for (i, (s, t)) in coords.iter().enumerate() {
+            mesh.vertices.push(ControlPoint {
+                geometry: Vector4::new(*s, *t, 0.0, 1.0),
+                uv: ParamPoint { s: *s, t: *t },
+                outgoing_edge: Some(EdgeID(i)),
+                is_t_junction: false,
+            });
+        }
+
+        // 2. Define 4 Half-Edges in a counter-clockwise loop
+        for i in 0..4 {
+            let next_id = (i + 1) % 4;
+            let prev_id = (i + 3) % 4;
+
+            mesh.edges.push(HalfEdge {
+                origin: VertID(i),
+                next: EdgeID(next_id),
+                prev: EdgeID(prev_id),
+                twin: None, // Single face has no neighbors
+                face: Some(FaceID(0)),
+                knot_interval: 1.0,
+                direction: if i % 2 == 0 { Direction::S } else { Direction::T },
+            });
+        }
+
+        // 3. Define the Face
+        mesh.faces.push(Face {
+            edge: EdgeID(0),
+        });
+
+        mesh
     }
 }
