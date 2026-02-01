@@ -1,7 +1,7 @@
 use cgmath::Point3;
 use cgmath::Vector4;
 use rayon::prelude::*;
-use crate::models::TSpline;
+use crate::models::{Bounds, TSpline};
 
 /// Evaluates a univariate cubic B-spline basis function.
 ///
@@ -52,7 +52,7 @@ pub fn cubic_basis_function(u: f64, knots: &[f64; 5]) -> f64 {
 }
 
 impl TSpline {
-    pub fn subs(&self, u: f64, v: f64) -> Point3<f64> {
+    pub fn subs(&self, s: f64, t: f64) -> Point3<f64> {
         let mut numerator = Vector4::new(0.0, 0.0, 0.0, 0.0);
         let mut denominator: f64 = 0.0;
 
@@ -60,12 +60,12 @@ impl TSpline {
             let (s_knots, t_knots) = &self.knot_cache()[i];
 
             // Quick AABB check in parameter space
-            if u < s_knots[0] || u > s_knots[4] || v < t_knots[0] || v > t_knots[4] {
+            if s < s_knots[0] || s > s_knots[4] || t < t_knots[0] || t > t_knots[4] {
                 continue;
             }
 
-            let basis_s = cubic_basis_function(u, s_knots);
-            let basis_t = cubic_basis_function(v, t_knots);
+            let basis_s = cubic_basis_function(s, s_knots);
+            let basis_t = cubic_basis_function(t, t_knots);
             let weight = vert.geometry.w;
             let basis = basis_s * basis_t * weight;
 
@@ -91,17 +91,18 @@ impl TSpline {
 
 impl TSpline {
     pub fn tessellate(&self, resolution: usize) -> Vec<Point3<f64>> {
-        // TODO: determine real bounds
-        let u_min = 0.0; let u_max = 10.0;
-        let v_min = 0.0; let v_max = 10.0;
+        let Bounds{
+            s: (s_min, s_max),
+            t: (t_min, t_max),
+        } = self.bounds();
 
         (0..resolution * resolution).into_par_iter().map(|i| {
             let u_i = i % resolution;
             let v_i = i / resolution;
-            let u = u_min + (u_i as f64 / resolution as f64) * (u_max - u_min);
-            let v = v_min + (v_i as f64 / resolution as f64) * (v_max - v_min);
+            let s = s_min + (u_i as f64 / resolution as f64) * (s_max - s_min);
+            let t = t_min + (v_i as f64 / resolution as f64) * (t_max - t_min);
 
-            self.subs(u, v)
+            self.subs(s, t)
         }).collect()
     }
 }
