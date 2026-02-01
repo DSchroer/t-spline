@@ -1,6 +1,8 @@
+use std::borrow::{Borrow, BorrowMut};
 use rayon::prelude::*;
 use crate::models::tmesh::TMesh;
 use crate::models::VertID;
+use crate::operation::SplineOp;
 
 #[derive(Debug, Default, Clone)]
 pub struct TSpline {
@@ -21,14 +23,7 @@ impl From<TMesh> for TSpline {
 
 impl TSpline {
     pub fn new(mesh: TMesh) -> Self {
-        // calculate the knot_cache from the mesh
-        // do not allow edits to mesh after to ensure that the cache is correct
-        let knot_cache = (0..mesh.vertices.len())
-            .into_par_iter()
-            .map(|v| {
-                mesh.infer_local_knots(VertID(v))
-            }).collect();
-
+        let knot_cache = Self::build_knot_cache(&mesh);
         Self{ mesh, knot_cache }
     }
 
@@ -60,6 +55,40 @@ impl TSpline {
         }
     }
 
+    /// Perform an operation on the underlying TMesh
+    ///
+    /// Simple modifications can be done using clojures:
+    /// ```
+    /// # use t_spline::models::*;
+    /// let mut spline = TSpline::new_unit_square();
+    /// spline.perform(|m: &mut TMesh| m.vertices[0].geometry.z = 1.0);
+    /// ```
+    ///
+    /// Errors will be passed through as needed:
+    /// ```
+    /// # use t_spline::models::*;
+    /// let mut spline = TSpline::new_unit_square();
+    /// let res = spline.perform(|m: &mut TMesh| Err(()));
+    /// res.unwrap_err();
+    /// ```
+    ///
+    /// Dynamic modifications can be done by boxing the operation:
+    /// ```
+    /// # use t_spline::operation::*;
+    /// # use t_spline::models::*;
+    /// let mut spline = TSpline::new_unit_square();
+    /// let dynamic_ptr: &mut dyn SplineOp<Error = ()> = &mut |m: &mut TMesh|{};
+    /// spline.perform(dynamic_ptr);
+    /// ```
+    ///
+    /// Complex operations should implement [SplineOp].
+    pub fn perform<T: SplineOp>(&mut self, mut op: impl BorrowMut<T>) -> Result<(), T::Error> {
+        op.borrow_mut().perform(&mut self.mesh)?;
+
+        self.knot_cache = Self::build_knot_cache(&self.mesh);
+        Ok(())
+    }
+
     pub fn knot_cache(&self) -> &Vec<([f64; 5], [f64; 5])> {
         &self.knot_cache
     }
@@ -70,5 +99,15 @@ impl TSpline {
 
     pub fn into_mesh(self) -> TMesh {
         self.mesh
+    }
+
+    fn build_knot_cache(mesh: &TMesh) -> Vec<([f64; 5], [f64; 5])> {
+        // calculate the knot_cache from the mesh
+        // do not allow edits to mesh after to ensure that the cache is correct
+        (0..mesh.vertices.len())
+            .into_par_iter()
+            .map(|v| {
+                mesh.infer_local_knots(VertID(v))
+            }).collect()
     }
 }

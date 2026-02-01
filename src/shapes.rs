@@ -1,8 +1,8 @@
 use crate::*;
 use crate::models::*;
 
-impl TMesh {
-    pub fn new_unit_square() -> TMesh {
+impl TSpline {
+    pub fn new_unit_square() -> TSpline {
         let mut mesh = TMesh {
             vertices: Vec::with_capacity(4),
             edges: Vec::with_capacity(8),
@@ -55,7 +55,7 @@ impl TMesh {
             edge: EdgeID(0),
         });
 
-        mesh
+        mesh.into()
     }
 
     /// Creates a simple T-Spline mesh with a T-junction, which is impossible
@@ -64,7 +64,7 @@ impl TMesh {
     /// F0 (Left): (0,0)-(1,0)-(1,1)-(1,2)-(0,2) [Pentagon with T-junction at (1,1)]
     /// F1 (Bot-Right): (1,0)-(2,0)-(2,1)-(1,1)
     /// F2 (Top-Right): (1,1)-(2,1)-(2,2)-(1,2)
-    pub fn new_t_junction() -> TMesh {
+    pub fn new_t_junction() -> TSpline {
         let mut mesh = TMesh {
             vertices: Vec::with_capacity(8),
             edges: Vec::with_capacity(20),
@@ -152,6 +152,6 @@ impl TMesh {
         mesh.faces.push(Face { edge: EdgeID(5) });
         mesh.faces.push(Face { edge: EdgeID(9) });
 
-        mesh
+        mesh.into()
     }
 }

@@ -306,6 +306,6 @@ mod tests {
     }
 
     pub fn unit_square_tmesh() -> TMesh {
-        TMesh::new_unit_square()
+        TSpline::new_unit_square().into_mesh()
     }
 }

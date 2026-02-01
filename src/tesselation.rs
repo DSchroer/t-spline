@@ -123,12 +123,11 @@ impl TSpline {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::TMesh;
     use super::*;
 
     #[test]
     pub fn it_can_evaluate_points_on_square() {
-        let square: TSpline = TMesh::new_unit_square().into();
+        let square = TSpline::new_unit_square();
 
         assert_eq!(Point3::new(0., 0., 0.), square.subs(0.0, 0.0));
         assert_eq!(Point3::new(1., 0., 0.), square.subs(1.0, 0.0));
@@ -138,7 +137,7 @@ mod tests {
 
     #[test]
     pub fn it_can_tessellate_a_square() {
-        let square: TSpline = TMesh::new_unit_square().into();
+        let square = TSpline::new_unit_square();
         let points = square.tessellate(2);
 
         assert_eq!(4, points.len());
@@ -151,7 +150,7 @@ mod tests {
 
     #[test]
     pub fn it_can_evaluate_center() {
-        let square: TSpline = TMesh::new_unit_square().into();
+        let square = TSpline::new_unit_square();
         let center = square.subs(0.5, 0.5);
         
         // Check components with epsilon tolerance
@@ -163,7 +162,7 @@ mod tests {
 
     #[test]
     pub fn it_can_tessellate_square() {
-        let square: TSpline = TMesh::new_unit_square().into();
+        let square = TSpline::new_unit_square();
         let resolution = 10;
         let points = square.tessellate(resolution);
 
@@ -179,7 +178,7 @@ mod tests {
 
     #[test]
     pub fn it_can_create_and_evaluate_t_junction_mesh() {
-        let t_mesh: TSpline = TMesh::new_t_junction().into();
+        let t_mesh: TSpline = TSpline::new_t_junction().into();
 
         // Just verify it doesn't panic and returns a point
         let p = t_mesh.subs(0.5, 0.5);
