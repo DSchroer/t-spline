@@ -2,6 +2,7 @@ use std::fmt::Write;
 use cgmath::Point3;
 use crate::models::TMesh;
 
+// TODO: switch to obj for multiple objects in same file
 #[derive(Debug, Default, Clone)]
 pub struct PlyWriter{
     header: String,
