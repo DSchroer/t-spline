@@ -1,7 +1,8 @@
 use crate::*;
+use crate::models::*;
 
-impl TSplineSurface {
-    pub fn new_square() -> TSplineSurface {
+impl TSpline {
+    pub fn new_square() -> TSpline {
         let mut mesh = TMesh {
             vertices: Vec::new(),
             edges: Vec::new(),
@@ -19,7 +20,6 @@ impl TSplineSurface {
 
         for (i, ((x, y, z), (s, t))) in v_coords.into_iter().enumerate() {
             mesh.vertices.push(ControlPoint {
-                id: VertID(i),
                 geometry: Vector4::new(x, y, z, 1.0),
                 uv: ParamPoint { s, t },
                 outgoing_edge: Some(EdgeID(i)), // Tentative assignment
@@ -34,7 +34,6 @@ impl TSplineSurface {
             let prev_idx = (i + 3) % 4;
 
             mesh.edges.push(HalfEdge {
-                id: EdgeID(i),
                 origin: VertID(i),
                 twin: None, // Simplified: no neighbors for a single patch
                 face: Some(FaceID(0)),
@@ -47,10 +46,9 @@ impl TSplineSurface {
 
         // 3. Define the Face
         mesh.faces.push(Face {
-            id: FaceID(0),
             edge: EdgeID(0),
         });
 
-        TSplineSurface::new(mesh)
+        TSpline::new(mesh)
     }
 }

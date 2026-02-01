@@ -1,7 +1,7 @@
 use cgmath::Point3;
 use cgmath::Vector4;
 use rayon::prelude::*;
-use crate::TSplineSurface;
+use crate::models::TSpline;
 
 /// Evaluates a univariate cubic B-spline basis function.
 ///
@@ -51,13 +51,13 @@ pub fn cubic_basis_function(u: f64, knots: &[f64; 5]) -> f64 {
     n[0]
 }
 
-impl TSplineSurface {
+impl TSpline {
     pub fn subs(&self, u: f64, v: f64) -> Point3<f64> {
         let mut numerator = Vector4::new(0.0, 0.0, 0.0, 0.0);
         let mut denominator: f64 = 0.0;
 
-        for (i, vert) in self.mesh.vertices.iter().enumerate() {
-            let (s_knots, t_knots) = &self.knot_cache[i];
+        for (i, vert) in self.mesh().vertices.iter().enumerate() {
+            let (s_knots, t_knots) = &self.knot_cache()[i];
 
             // Quick AABB check in parameter space
             // if u < s_knots || u > s_knots || v < t_knots || v > t_knots {
@@ -89,7 +89,7 @@ impl TSplineSurface {
     }
 }
 
-impl TSplineSurface {
+impl TSpline {
     pub fn tessellate(&self, resolution: usize) -> Vec<Point3<f64>> {
         // TODO: determine real bounds
         let u_min = 0.0; let u_max = 10.0;
@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     pub fn it_can_evaluate_points_on_square() {
-        let square = TSplineSurface::new_square();
+        let square = TSpline::new_square();
 
         assert_eq!(Point3::new(0., 0., 0.), square.subs(0.0, 0.0));
         assert_eq!(Point3::new(1., 0., 0.), square.subs(1.0, 0.0));
@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     pub fn it_can_tessellate_square() {
-        let square = TSplineSurface::new_square();
+        let square = TSpline::new_square();
 
         let points = square.tessellate(10);
 
