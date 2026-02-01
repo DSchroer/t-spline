@@ -1,5 +1,5 @@
 use t_spline::export::write_ply;
-use t_spline::models::{TMesh, TSpline};
+use t_spline::models::{TSpline};
 
 fn main() {
     let mesh = TSpline::new_t_junction();

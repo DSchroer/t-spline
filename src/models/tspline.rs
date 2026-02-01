@@ -20,6 +20,12 @@ impl From<TMesh> for TSpline {
     }
 }
 
+impl From<TSpline> for TMesh {
+    fn from(value: TSpline) -> Self {
+        value.into_mesh()
+    }
+}
+
 impl TSpline {
     pub fn new(mesh: TMesh) -> Self {
         let knot_cache = Self::build_knot_cache(&mesh);
@@ -81,11 +87,11 @@ impl TSpline {
     /// ```
     ///
     /// Complex operations should implement [SplineOp].
-    pub fn perform<T: SplineOp + ?Sized>(&mut self, op: &mut T) -> Result<(), T::Error> {
+    pub fn perform<T: SplineOp + ?Sized>(&mut self, op: &mut T) -> Result<&mut Self, T::Error> {
         op.perform(&mut self.mesh)?;
 
         self.knot_cache = Self::build_knot_cache(&self.mesh);
-        Ok(())
+        Ok(self)
     }
 
     pub fn knot_cache(&self) -> &Vec<([f64; 5], [f64; 5])> {
