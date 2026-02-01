@@ -67,10 +67,23 @@ impl TMesh {
         let t_pos = self.trace_knots(v_id, Direction::T, true);  // t3, t4
         let t_neg = self.trace_knots(v_id, Direction::T, false); // t1, t0
 
-        (
-            [s_neg[1], s_neg[0], s2, s_pos[0], s_pos[1]],
-            [t_neg[1], t_neg[0], t2, t_pos[0], t_pos[1]],
-        )
+        let mut s_knots = [s_neg[1], s_neg[0], s2, s_pos[0], s_pos[1]];
+        let mut t_knots = [t_neg[1], t_neg[0], t2, t_pos[0], t_pos[1]];
+
+        // Apply boundary shifts to ensure open knot vectors (multiplicity 4 at boundaries)
+        if s_neg[0] == s2 && s_neg[1] == s2 {
+            s_knots = [s2, s2, s2, s2, s_pos[0]];
+        } else if s_pos[0] == s2 && s_pos[1] == s2 {
+            s_knots = [s_neg[1], s2, s2, s2, s2];
+        }
+
+        if t_neg[0] == t2 && t_neg[1] == t2 {
+            t_knots = [t2, t2, t2, t2, t_pos[0]];
+        } else if t_pos[0] == t2 && t_pos[1] == t2 {
+            t_knots = [t_neg[1], t2, t2, t2, t2];
+        }
+
+        (s_knots, t_knots)
     }
 
     /// Traces a ray from start_v in a direction to find the next two orthogonal knots.
@@ -147,36 +160,36 @@ impl TMesh {
         None
     }
 
-    /// Casts a ray in `direction` for `steps` topological units.
-    /// Returns the coordinate found.
-    fn cast_ray_for_knot(&self, start_v: VertID, dir: Direction, steps: i32) -> f64 {
-        let mut curr_v = start_v;
-        let is_forward = steps > 0;
-        let count = steps.abs();
-
-        for _ in 0..count {
-            match self.find_next_orthogonal_edge(curr_v, dir, is_forward) {
-                Some(next_v) => {
-                    curr_v = next_v;
-                }
-                None => {
-                    // Boundary reached.
-                    // Standard T-Spline rule: extend the last interval or repeat knot.
-                    // Here we simply return the boundary coordinate.
-                    // A more robust impl would repeat the boundary knot if steps remain.
-                    return match dir {
-                        Direction::S => self.vertex(curr_v).uv.s,
-                        Direction::T => self.vertex(curr_v).uv.t,
-                    };
-                }
-            }
-        }
-
-        match dir {
-            Direction::S => self.vertex(curr_v).uv.s,
-            Direction::T => self.vertex(curr_v).uv.t,
-        }
-    }
+    // /// Casts a ray in `direction` for `steps` topological units.
+    // /// Returns the coordinate found.
+    // fn cast_ray_for_knot(&self, start_v: VertID, dir: Direction, steps: i32) -> f64 {
+    //     let mut curr_v = start_v;
+    //     let is_forward = steps > 0;
+    //     let count = steps.abs();
+    //
+    //     for _ in 0..count {
+    //         match self.find_next_orthogonal_edge(curr_v, dir, is_forward) {
+    //             Some(next_v) => {
+    //                 curr_v = next_v;
+    //             }
+    //             None => {
+    //                 // Boundary reached.
+    //                 // Standard T-Spline rule: extend the last interval or repeat knot.
+    //                 // Here we simply return the boundary coordinate.
+    //                 // A more robust impl would repeat the boundary knot if steps remain.
+    //                 return match dir {
+    //                     Direction::S => self.vertex(curr_v).uv.s,
+    //                     Direction::T => self.vertex(curr_v).uv.t,
+    //                 };
+    //             }
+    //         }
+    //     }
+    //
+    //     match dir {
+    //         Direction::S => self.vertex(curr_v).uv.s,
+    //         Direction::T => self.vertex(curr_v).uv.t,
+    //     }
+    // }
 
     /// Finds the next vertex connected by an edge in the given direction.
     /// This abstracts the topology navigation.
@@ -273,7 +286,6 @@ impl TMesh {
 
 #[cfg(test)]
 mod tests {
-    use cgmath::Vector4;
     use super::*;
 
     #[test]
@@ -289,8 +301,8 @@ mod tests {
         let mesh = unit_square_tmesh();
 
         let (s_knots, t_knots) = mesh.infer_local_knots(VertID(0));
-        assert_eq!([0., 0., 0., 1., 1.], s_knots);
-        assert_eq!([0., 0., 0., 1., 1.], t_knots);
+        assert_eq!([0., 0., 0., 0., 1.], s_knots);
+        assert_eq!([0., 0., 0., 0., 1.], t_knots);
     }
 
     pub fn unit_square_tmesh() -> TMesh {

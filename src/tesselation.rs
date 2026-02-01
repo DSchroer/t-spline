@@ -11,16 +11,20 @@ use crate::models::{Bounds, TSpline};
 pub fn cubic_basis_function(u: f64, knots: &[f64; 5]) -> f64 {
     // 1. Boundary check for the support [u_i, u_{i+4}]
     // Basis functions are non-zero only within their knot spans.
-    if u < knots[0] || u > knots[1] {
+    if u < knots[0] || u > knots[4] {
         return 0.0;
     }
+
+    // Clamp u to be strictly inside the support for the half-open interval logic,
+    // effectively taking the limit from the left at the boundary.
+    let u_eval = if u >= knots[4] { knots[4] - 1e-14 } else { u };
 
     // 2. Initialize the 0th degree basis (step functions)
     // There are 4 intervals defined by 5 knots.
     let mut n = [0.0; 4];
     for i in 0..4 {
-        // Handle the right-most boundary to ensure the interval is closed at the end
-        if u >= knots[i] && (u < knots[i + 1] || (u == knots[1] && i == 3)) {
+        // Standard half-open interval check [t_i, t_{i+1})
+        if u_eval >= knots[i] && u_eval < knots[i + 1] {
             n[i] = 1.0;
         }
     }
@@ -117,14 +121,35 @@ mod tests {
 
         assert_eq!(Point3::new(0., 0., 0.), square.subs(0.0, 0.0));
         assert_eq!(Point3::new(1., 0., 0.), square.subs(1.0, 0.0));
+        assert_eq!(Point3::new(0., 1., 0.), square.subs(0.0, 1.0));
+        assert_eq!(Point3::new(1., 1., 0.), square.subs(1.0, 1.0));
     }
 
-    // #[test]
-    // pub fn it_can_tessellate_square() {
-    //     let square = TSpline::new_unit_square();
-    //
-    //     let points = square.tessellate(10);
-    //
-    //     println!("{:?}", points);
-    // }
+    #[test]
+    pub fn it_can_evaluate_center() {
+        let square = TSpline::new_unit_square();
+        let center = square.subs(0.5, 0.5);
+        
+        // Check components with epsilon tolerance
+        let expected = Point3::new(0.5, 0.5, 0.0);
+        let diff = center - expected;
+        assert!(diff.x.abs() < 1e-9 && diff.y.abs() < 1e-9 && diff.z.abs() < 1e-9, 
+            "Center mismatch: expected {:?}, got {:?}", expected, center);
+    }
+
+    #[test]
+    pub fn it_can_tessellate_square() {
+        let square = TSpline::new_unit_square();
+        let resolution = 5;
+        let points = square.tessellate(resolution);
+
+        assert_eq!(points.len(), resolution * resolution);
+        
+        // Verify bounds of tessellated points
+        for p in points {
+            assert!(p.x >= -1e-9 && p.x <= 1.0 + 1e-9);
+            assert!(p.y >= -1e-9 && p.y <= 1.0 + 1e-9);
+            assert!((p.z - 0.0).abs() < 1e-9);
+        }
+    }
 }
