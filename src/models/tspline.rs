@@ -1,4 +1,3 @@
-use std::ops::Range;
 use rayon::prelude::*;
 use crate::models::tmesh::TMesh;
 use crate::models::VertID;
@@ -12,6 +11,12 @@ pub struct TSpline {
 pub struct Bounds {
     pub s: (f64, f64),
     pub t: (f64, f64),
+}
+
+impl From<TMesh> for TSpline {
+    fn from(value: TMesh) -> Self {
+        TSpline::new(value)
+    }
 }
 
 impl TSpline {

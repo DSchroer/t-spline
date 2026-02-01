@@ -100,11 +100,21 @@ impl TSpline {
             t: (t_min, t_max),
         } = self.bounds();
 
+        let denom = (resolution - 1) as f64;
         (0..resolution * resolution).into_par_iter().map(|i| {
             let u_i = i % resolution;
             let v_i = i / resolution;
-            let s = s_min + (u_i as f64 / resolution as f64) * (s_max - s_min);
-            let t = t_min + (v_i as f64 / resolution as f64) * (t_max - t_min);
+            let s = if resolution > 1 {
+                s_min + (u_i as f64 / denom) * (s_max - s_min)
+            } else {
+                s_min
+            };
+
+            let t = if resolution > 1 {
+                t_min + (v_i as f64 / denom) * (t_max - t_min)
+            } else {
+                t_min
+            };
 
             self.subs(s, t)
         }).collect()
@@ -113,11 +123,12 @@ impl TSpline {
 
 #[cfg(test)]
 mod tests {
+    use crate::models::TMesh;
     use super::*;
 
     #[test]
     pub fn it_can_evaluate_points_on_square() {
-        let square = TSpline::new_unit_square();
+        let square: TSpline = TMesh::new_unit_square().into();
 
         assert_eq!(Point3::new(0., 0., 0.), square.subs(0.0, 0.0));
         assert_eq!(Point3::new(1., 0., 0.), square.subs(1.0, 0.0));
@@ -126,8 +137,21 @@ mod tests {
     }
 
     #[test]
+    pub fn it_can_tessellate_a_square() {
+        let square: TSpline = TMesh::new_unit_square().into();
+        let points = square.tessellate(2);
+
+        assert_eq!(4, points.len());
+
+        assert_eq!(Point3::new(0., 0., 0.), points[0]);
+        assert_eq!(Point3::new(1., 0., 0.), points[1]);
+        assert_eq!(Point3::new(0., 1., 0.), points[2]);
+        assert_eq!(Point3::new(1., 1., 0.), points[3]);
+    }
+
+    #[test]
     pub fn it_can_evaluate_center() {
-        let square = TSpline::new_unit_square();
+        let square: TSpline = TMesh::new_unit_square().into();
         let center = square.subs(0.5, 0.5);
         
         // Check components with epsilon tolerance
@@ -139,8 +163,8 @@ mod tests {
 
     #[test]
     pub fn it_can_tessellate_square() {
-        let square = TSpline::new_unit_square();
-        let resolution = 5;
+        let square: TSpline = TMesh::new_unit_square().into();
+        let resolution = 10;
         let points = square.tessellate(resolution);
 
         assert_eq!(points.len(), resolution * resolution);
@@ -151,5 +175,14 @@ mod tests {
             assert!(p.y >= -1e-9 && p.y <= 1.0 + 1e-9);
             assert!((p.z - 0.0).abs() < 1e-9);
         }
+    }
+
+    #[test]
+    pub fn it_can_create_and_evaluate_t_junction_mesh() {
+        let t_mesh: TSpline = TMesh::new_t_junction().into();
+
+        // Just verify it doesn't panic and returns a point
+        let p = t_mesh.subs(0.5, 0.5);
+        assert!((p.z - 0.0).abs() < 1e-9);
     }
 }

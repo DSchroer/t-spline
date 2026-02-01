@@ -191,50 +191,50 @@ impl TMesh {
     //     }
     // }
 
-    /// Finds the next vertex connected by an edge in the given direction.
-    /// This abstracts the topology navigation.
-    fn find_next_orthogonal_edge(&self, v: VertID, dir: Direction, forward: bool) -> Option<VertID> {
-        let start_edge = self.vertex(v).outgoing_edge?;
-        let mut curr = start_edge;
-
-        // Circulate to find edge aligned with direction
-        loop {
-            let edge = self.edge(curr);
-
-            // Check alignment. This assumes edges store their parametric direction.
-            // In a real implementation, we might check the geometry of the UVs.
-            let is_aligned = edge.direction == dir;
-
-            // "Forward" in S means increasing S.
-            // We need to check geometry or explicit flags.
-            // Simplified logic: assume edges are directed.
-            let geometry_delta = if let Some(twin) = edge.twin {
-                let dest = self.edge(twin).origin;
-                let uv_dest = self.vertex(dest).uv;
-                let uv_src = self.vertex(edge.origin).uv;
-                match dir {
-                    Direction::S => uv_dest.s - uv_src.s,
-                    Direction::T => uv_dest.t - uv_src.t,
-                }
-            } else { 0.0 };
-
-            if is_aligned {
-                if (forward && geometry_delta > 0.0)
-                    || (!forward && geometry_delta < 0.0) {
-                    return edge.twin.map(|id| self.edge(id).origin);
-                }
-            }
-
-            // Move to next spoke
-            if let Some(twin) = edge.twin {
-                curr = self.edge(twin).next;
-            } else {
-                break;
-            }
-            if curr == start_edge { break; }
-        }
-        None
-    }
+    // /// Finds the next vertex connected by an edge in the given direction.
+    // /// This abstracts the topology navigation.
+    // fn find_next_orthogonal_edge(&self, v: VertID, dir: Direction, forward: bool) -> Option<VertID> {
+    //     let start_edge = self.vertex(v).outgoing_edge?;
+    //     let mut curr = start_edge;
+    //
+    //     // Circulate to find edge aligned with direction
+    //     loop {
+    //         let edge = self.edge(curr);
+    //
+    //         // Check alignment. This assumes edges store their parametric direction.
+    //         // In a real implementation, we might check the geometry of the UVs.
+    //         let is_aligned = edge.direction == dir;
+    //
+    //         // "Forward" in S means increasing S.
+    //         // We need to check geometry or explicit flags.
+    //         // Simplified logic: assume edges are directed.
+    //         let geometry_delta = if let Some(twin) = edge.twin {
+    //             let dest = self.edge(twin).origin;
+    //             let uv_dest = self.vertex(dest).uv;
+    //             let uv_src = self.vertex(edge.origin).uv;
+    //             match dir {
+    //                 Direction::S => uv_dest.s - uv_src.s,
+    //                 Direction::T => uv_dest.t - uv_src.t,
+    //             }
+    //         } else { 0.0 };
+    //
+    //         if is_aligned {
+    //             if (forward && geometry_delta > 0.0)
+    //                 || (!forward && geometry_delta < 0.0) {
+    //                 return edge.twin.map(|id| self.edge(id).origin);
+    //             }
+    //         }
+    //
+    //         // Move to next spoke
+    //         if let Some(twin) = edge.twin {
+    //             curr = self.edge(twin).next;
+    //         } else {
+    //             break;
+    //         }
+    //         if curr == start_edge { break; }
+    //     }
+    //     None
+    // }
 
     // // Validates if the current mesh satisfies ASTS conditions.
     // pub fn validate_asts(&self) -> bool {
@@ -306,6 +306,6 @@ mod tests {
     }
 
     pub fn unit_square_tmesh() -> TMesh {
-        TSpline::new_unit_square().into_mesh()
+        TMesh::new_unit_square()
     }
 }
