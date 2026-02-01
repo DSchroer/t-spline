@@ -4,7 +4,7 @@ use t_spline::models::{TMesh, TSpline};
 fn main() {
     let mut mesh = TSpline::new_unit_square();
 
-    mesh.perform(|m: &mut TMesh| {
+    mesh.perform(&mut |m: &mut TMesh| {
         m.vertices[0].geometry.z = 1.0;
         m.vertices[2].geometry.z = 1.0;
     }).unwrap();

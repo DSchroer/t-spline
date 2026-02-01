@@ -38,12 +38,3 @@ impl<T, Out> SplineOp for T
         self(mesh).into_result()
     }
 }
-
-impl<E> SplineOp for &mut dyn SplineOp<Error = E> {
-    type Error = E;
-
-    fn perform(&mut self, mesh: &mut TMesh) -> Result<(), Self::Error> {
-        (**self).perform(mesh)
-    }
-}
-

@@ -60,29 +60,28 @@ impl TSpline {
     /// ```
     /// # use t_spline::models::*;
     /// let mut spline = TSpline::new_unit_square();
-    /// spline.perform(|m: &mut TMesh| m.vertices[0].geometry.z = 1.0);
+    /// spline.perform(&mut |m: &mut TMesh| m.vertices[0].geometry.z = 1.0);
     /// ```
     ///
     /// Errors will be passed through as needed:
     /// ```
     /// # use t_spline::models::*;
     /// let mut spline = TSpline::new_unit_square();
-    /// let res = spline.perform(|m: &mut TMesh| Err(()));
+    /// let res = spline.perform(&mut |m: &mut TMesh| Err(()));
     /// res.unwrap_err();
     /// ```
     ///
-    /// Dynamic modifications are also possible:
+    /// Dynamic dispatch modifications are also possible:
     /// ```
-    /// # use std::io::Error;
-    /// use t_spline::operation::*;
+    /// # use t_spline::operation::*;
     /// # use t_spline::models::*;
     /// let mut spline = TSpline::new_unit_square();
-    /// let mut dynOp : Box<dyn SplineOp<Error=()>> = Box::new(|m: &mut TMesh|{});
+    /// let mut dynOp: Box<dyn SplineOp<Error=()>> = Box::new(|m: &mut TMesh|{});
     /// spline.perform(dynOp.as_mut());
     /// ```
     ///
     /// Complex operations should implement [SplineOp].
-    pub fn perform<T: SplineOp>(&mut self, mut op: T) -> Result<(), T::Error> {
+    pub fn perform<T: SplineOp + ?Sized>(&mut self, op: &mut T) -> Result<(), T::Error> {
         op.perform(&mut self.mesh)?;
 
         self.knot_cache = Self::build_knot_cache(&self.mesh);
