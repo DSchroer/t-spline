@@ -106,7 +106,22 @@ impl TMesh {
                 };
                 found_count += 1;
             } else {
-                // Boundary Condition: If the ray hits the edge of the T-mesh,
+                // Fallback: Check if the ray passes through a face and hits an edge
+                if let Some(coord) = self.find_face_intersection(current_v, axis, positive) {
+                     results[found_count] = coord;
+                     found_count += 1;
+                     
+                     // If we hit a face edge (not a vertex), we treat it as a boundary 
+                     // or a hard stop for this simple implementation.
+                     let last_knot = coord;
+                     while found_count < 2 {
+                        results[found_count] = last_knot;
+                        found_count += 1;
+                     }
+                     break;
+                }
+
+                // Boundary Condition: If the ray hits the edge of the T-mesh (and no face covers it),
                 // repeat the last found knot to simulate an open knot vector.
                 let last_knot = if found_count > 0 {
                     results[found_count - 1]
@@ -124,6 +139,103 @@ impl TMesh {
             }
         }
         results
+    }
+
+    /// Searches for an intersection with any edge of the faces incident to `start_v`
+    /// along the specified ray.
+    fn find_face_intersection(&self, start_v: VertID, axis: Direction, positive: bool) -> Option<f64> {
+        let v = &self.vertices[start_v.0];
+        let start_edge = v.outgoing_edge?;
+        let mut curr_spoke = start_edge;
+        
+        let mut closest_dist = f64::MAX;
+        let mut found_coord = None;
+
+        // Iterate over all incident faces
+        loop {
+            let spoke_edge = &self.edges[curr_spoke.0];
+            
+            if let Some(face_id) = spoke_edge.face {
+                // Iterate edges of this face
+                let face_edges = self.face_edges(face_id);
+                for &edge_id in &face_edges {
+                    let edge = &self.edges[edge_id.0];
+                    let p1 = &self.vertices[edge.origin.0].uv;
+                    // Actually, robust way to get p2:
+                    let p2 = if let Some(twin) = edge.twin {
+                        &self.vertices[self.edges[twin.0].origin.0].uv
+                    } else {
+                        // If no twin, find vertex that 'next' points to? 
+                        // Actually 'next' starts at p2. So:
+                        &self.vertices[self.edges[edge.next.0].origin.0].uv
+                    };
+
+                    // Check intersection
+                    // Ray: constant component = v.uv.{other}, variable component > v.uv.{axis}
+                    // Edge: p1 to p2
+                    
+                    let (ray_const, ray_start) = match axis {
+                        Direction::S => (v.uv.t, v.uv.s),
+                        Direction::T => (v.uv.s, v.uv.t),
+                    };
+                    
+                    let (e_p1_const, e_p1_var) = match axis {
+                        Direction::S => (p1.t, p1.s),
+                        Direction::T => (p1.s, p1.t),
+                    };
+                    let (e_p2_const, e_p2_var) = match axis {
+                        Direction::S => (p2.t, p2.s),
+                        Direction::T => (p2.s, p2.t),
+                    };
+
+                    // Check if edge spans across the ray constant
+                    // Careful with floating point epsilon
+                    let min_c = e_p1_const.min(e_p2_const);
+                    let max_c = e_p1_const.max(e_p2_const);
+                    
+                    if ray_const >= min_c - 1e-9 && ray_const <= max_c + 1e-9 {
+                        // Edge crosses or touches the ray line.
+                        // But we must exclude the start vertex itself (which is p1 or p2)
+                        // Distance check handles this if we ensure dist > epsilon
+                        
+                        // Intersection calculation (linear interpolation)
+                        // C = p1.c + t * (p2.c - p1.c) => t = (C - p1.c) / (p2.c - p1.c)
+                        // Var = p1.v + t * (p2.v - p1.v)
+                        
+                        let intersect_var = if (e_p2_const - e_p1_const).abs() < 1e-12 {
+                            // Edge is parallel to ray? Then it must be collinear.
+                            // If collinear, we pick the point closest to ray_start but > ray_start
+                            // This case usually handled by find_next_vertex_in_direction, but 
+                            // if that failed, maybe we found a detached edge? Unlikely in valid mesh.
+                            // Ignore parallel edges in this fallback.
+                            continue;
+                        } else {
+                            let t = (ray_const - e_p1_const) / (e_p2_const - e_p1_const);
+                            e_p1_var + t * (e_p2_var - e_p1_var)
+                        };
+
+                        let dist = intersect_var - ray_start;
+                        
+                        if (positive && dist > 1e-6) || (!positive && dist < -1e-6) {
+                            if dist.abs() < closest_dist {
+                                closest_dist = dist.abs();
+                                found_coord = Some(intersect_var);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Next spoke
+            if let Some(twin_id) = spoke_edge.twin {
+                curr_spoke = self.edges[twin_id.0].next;
+            } else {
+                break; 
+            }
+            if curr_spoke == start_edge { break; }
+        }
+        
+        found_coord
     }
 
     /// Helper to find the next vertex along the mesh edges in a specific direction.

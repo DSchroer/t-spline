@@ -1,11 +1,16 @@
 use std::error::Error;
-use t_spline::export::write_ply;
+use t_spline::export::PlyWriter;
 use t_spline::models::{TSpline};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mesh = TSpline::new_simple();
+    let spline = TSpline::new_simple();
 
-    let points = mesh.tessellate(100);
-    write_ply(&mut std::io::stdout(), &points)?;
+    let points = spline.tessellate(100);
+
+    PlyWriter::default()
+        .with_point(&points)?
+        // .with_geometry(&spline.mesh())?
+        .write(&mut std::io::stdout())?;
+
     Ok(())
 }
