@@ -1,4 +1,3 @@
-use std::borrow::{Borrow, BorrowMut};
 use rayon::prelude::*;
 use crate::models::tmesh::TMesh;
 use crate::models::VertID;
@@ -74,16 +73,17 @@ impl TSpline {
     ///
     /// Dynamic modifications are also possible:
     /// ```
-    /// # use t_spline::operation::*;
+    /// # use std::io::Error;
+    /// use t_spline::operation::*;
     /// # use t_spline::models::*;
     /// let mut spline = TSpline::new_unit_square();
-    /// let dynamic_ptr: Box<dyn SplineOp<Error=()>>= Box::new(|m: &mut TMesh|{});
-    /// spline.perform(&dynamic_ptr);
+    /// let mut dynOp : Box<dyn SplineOp<Error=()>> = Box::new(|m: &mut TMesh|{});
+    /// spline.perform(dynOp.as_mut());
     /// ```
     ///
     /// Complex operations should implement [SplineOp].
-    pub fn perform<T: SplineOp>(&mut self, mut op: impl BorrowMut<T>) -> Result<(), T::Error> {
-        op.borrow_mut().perform(&mut self.mesh)?;
+    pub fn perform<T: SplineOp>(&mut self, mut op: T) -> Result<(), T::Error> {
+        op.perform(&mut self.mesh)?;
 
         self.knot_cache = Self::build_knot_cache(&self.mesh);
         Ok(())
