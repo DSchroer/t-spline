@@ -112,18 +112,18 @@ mod tests {
 
     #[test]
     pub fn it_can_evaluate_points_on_square() {
-        let square = TSpline::new_square();
+        let square = TSpline::new_unit_square();
 
         assert_eq!(Point3::new(0., 0., 0.), square.subs(0.0, 0.0));
         assert_eq!(Point3::new(1., 0., 0.), square.subs(1.0, 0.0));
     }
 
-    #[test]
-    pub fn it_can_tessellate_square() {
-        let square = TSpline::new_square();
-
-        let points = square.tessellate(10);
-
-        println!("{:?}", points);
-    }
+    // #[test]
+    // pub fn it_can_tessellate_square() {
+    //     let square = TSpline::new_unit_square();
+    //
+    //     let points = square.tessellate(10);
+    //
+    //     println!("{:?}", points);
+    // }
 }

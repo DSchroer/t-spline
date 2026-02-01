@@ -294,45 +294,6 @@ mod tests {
     }
 
     pub fn unit_square_tmesh() -> TMesh {
-        let mut mesh = TMesh {
-            vertices: Vec::with_capacity(4),
-            edges: Vec::with_capacity(4),
-            faces: Vec::with_capacity(1),
-        };
-
-        // 1. Define 4 Corner Vertices
-        // Coordinates: (0,0), (1,0), (1,1), (0,1)
-        let coords = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)];
-        for (i, (s, t)) in coords.iter().enumerate() {
-            mesh.vertices.push(ControlPoint {
-                geometry: Vector4::new(*s, *t, 0.0, 1.0),
-                uv: ParamPoint { s: *s, t: *t },
-                outgoing_edge: Some(EdgeID(i)),
-                is_t_junction: false,
-            });
-        }
-
-        // 2. Define 4 Half-Edges in a counter-clockwise loop
-        for i in 0..4 {
-            let next_id = (i + 1) % 4;
-            let prev_id = (i + 3) % 4;
-
-            mesh.edges.push(HalfEdge {
-                origin: VertID(i),
-                next: EdgeID(next_id),
-                prev: EdgeID(prev_id),
-                twin: None, // Single face has no neighbors
-                face: Some(FaceID(0)),
-                knot_interval: 1.0,
-                direction: if i % 2 == 0 { Direction::S } else { Direction::T },
-            });
-        }
-
-        // 3. Define the Face
-        mesh.faces.push(Face {
-            edge: EdgeID(0),
-        });
-
-        mesh
+        TSpline::new_unit_square().into_mesh()
     }
 }
