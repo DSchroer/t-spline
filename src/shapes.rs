@@ -154,4 +154,90 @@ impl TSpline {
 
         mesh.into()
     }
+
+    pub fn new_simple() -> TSpline {
+        let mut mesh = TMesh {
+            vertices: Vec::with_capacity(8),
+            edges: Vec::with_capacity(20),
+            faces: Vec::with_capacity(3),
+        };
+
+        // 1. Vertices
+        // Mapped from createTPoints in simple.txt
+        let coords = [
+            (0.0, 0.0, 0.0, 0.0, 0.0, 1.0), // 0: v0 (0,0) -> p0-2
+            (0.5, 0.0, 2.0, 0.0, 0.5, 1.0), // 1: v1 (0.5,0) -> p1-1
+            (1.0, 0.0, 4.0, 0.0, 0.0, 1.0), // 2: v2 (1,0) -> p2-3
+            (0.0, 0.5, 0.0, 2.0, 0.5, 1.0), // 3: v3 (0,0.5) -> p3-0
+            (0.5, 0.5, 2.0, 2.0, -1.0, 1.0), // 4: v4 (0.5,0.5) -> p4-0 (T-Junction)
+            (1.0, 0.5, 4.0, 2.0, 0.5, 1.0), // 5: v5 (1,0.5) -> p5-1
+            (0.0, 1.0, 0.0, 4.0, 0.0, 1.0), // 6: v6 (0,1) -> p6-0
+            (1.0, 1.0, 4.0, 4.0, 0.0, 1.0), // 7: v7 (1,1) -> p7-1
+        ];
+
+        for (i, (s, t, x, y, z, w)) in coords.iter().enumerate() {
+            let is_t = i == 4;
+            mesh.vertices.push(ControlPoint {
+                geometry: Vector4::new(*x, *y, *z, *w),
+                uv: ParamPoint { s: *s, t: *t },
+                outgoing_edge: None,
+                is_t_junction: is_t,
+            });
+        }
+
+        // Helper to add edge
+        let mut add_edge = |origin: usize, next: usize, prev: usize, twin: Option<usize>, face: Option<usize>, dir: Direction, interval: f64| {
+            let id = mesh.edges.len();
+            mesh.edges.push(HalfEdge {
+                origin: VertID(origin),
+                next: EdgeID(next),
+                prev: EdgeID(prev),
+                twin: twin.map(EdgeID),
+                face: face.map(FaceID),
+                knot_interval: interval,
+                direction: dir,
+            });
+            if mesh.vertices[origin].outgoing_edge.is_none() {
+                mesh.vertices[origin].outgoing_edge = Some(EdgeID(id));
+            }
+        };
+
+        // Face 0 (v0->v1->v4->v3)
+        // Indices: 0, 1, 2, 3
+        add_edge(0, 1, 3, Some(13), Some(0), Direction::S, 0.5); // 0: v0->v1
+        add_edge(1, 2, 0, Some(7),  Some(0), Direction::T, 0.5); // 1: v1->v4
+        add_edge(4, 3, 1, Some(8),  Some(0), Direction::S, 0.5); // 2: v4->v3
+        add_edge(3, 0, 2, Some(14), Some(0), Direction::T, 0.5); // 3: v3->v0
+
+        // Face 1 (v1->v2->v5->v4)
+        // Indices: 4, 5, 6, 7
+        add_edge(1, 5, 7, Some(19), Some(1), Direction::S, 0.5); // 4: v1->v2
+        add_edge(2, 6, 4, Some(18), Some(1), Direction::T, 0.5); // 5: v2->v5
+        add_edge(5, 7, 5, Some(9),  Some(1), Direction::S, 0.5); // 6: v5->v4
+        add_edge(4, 4, 6, Some(1),  Some(1), Direction::T, 0.5); // 7: v4->v1
+
+        // Face 2 (v3->v4->v5->v7->v6)
+        // Indices: 8, 9, 10, 11, 12
+        add_edge(3, 9,  12, Some(2),  Some(2), Direction::S, 0.5); // 8: v3->v4
+        add_edge(4, 10, 8,  Some(6),  Some(2), Direction::S, 0.5); // 9: v4->v5
+        add_edge(5, 11, 9,  Some(17), Some(2), Direction::T, 0.5); // 10: v5->v7
+        add_edge(7, 12, 10, Some(16), Some(2), Direction::S, 1.0); // 11: v7->v6
+        add_edge(6, 8,  11, Some(15), Some(2), Direction::T, 0.5); // 12: v6->v3
+
+        // Boundary (Clockwise Loop)
+        add_edge(1, 14, 19, Some(0),  None, Direction::S, 0.5); // 13: v1->v0
+        add_edge(0, 15, 13, Some(3),  None, Direction::T, 0.5); // 14: v0->v3
+        add_edge(3, 16, 14, Some(12), None, Direction::T, 0.5); // 15: v3->v6
+        add_edge(6, 17, 15, Some(11), None, Direction::S, 1.0); // 16: v6->v7
+        add_edge(7, 18, 16, Some(10), None, Direction::T, 0.5); // 17: v7->v5
+        add_edge(5, 19, 17, Some(5),  None, Direction::T, 0.5); // 18: v5->v2
+        add_edge(2, 13, 18, Some(4),  None, Direction::S, 0.5); // 19: v2->v1
+
+        // Faces
+        mesh.faces.push(Face { edge: EdgeID(0) });
+        mesh.faces.push(Face { edge: EdgeID(4) });
+        mesh.faces.push(Face { edge: EdgeID(8) });
+
+        mesh.into()
+    }
 }
