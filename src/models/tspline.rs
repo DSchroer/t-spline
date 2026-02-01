@@ -1,4 +1,5 @@
 use rayon::prelude::*;
+use thiserror::Error;
 use crate::models::tmesh::TMesh;
 use crate::models::VertID;
 use crate::operation::SplineOp;
@@ -24,6 +25,12 @@ impl From<TSpline> for TMesh {
     fn from(value: TSpline) -> Self {
         value.into_mesh()
     }
+}
+
+#[derive(Error, Debug)]
+pub enum SplineError<T> {
+    #[error("spline operation failed: {0:?}")]
+    Operation(T)
 }
 
 impl TSpline {
@@ -87,8 +94,8 @@ impl TSpline {
     /// ```
     ///
     /// Complex operations should implement [SplineOp].
-    pub fn perform<T: SplineOp + ?Sized>(&mut self, op: &mut T) -> Result<&mut Self, T::Error> {
-        op.perform(&mut self.mesh)?;
+    pub fn perform<T: SplineOp + ?Sized>(&mut self, op: &mut T) -> Result<&mut Self, SplineError<T::Error>> {
+        op.perform(&mut self.mesh).map_err(SplineError::Operation)?;
 
         self.knot_cache = Self::build_knot_cache(&self.mesh);
         Ok(self)
