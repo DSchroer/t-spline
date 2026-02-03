@@ -14,7 +14,6 @@ use crate::tmesh::ids::{EdgeID, FaceID, VertID};
 use cgmath::{Point3, Vector4};
 use num_traits::{Float, NumAssign};
 use std::fmt::Debug;
-use std::ops::{AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
 
 #[derive(Debug, Clone, Default)]
 pub struct TMesh<T> {
@@ -451,7 +450,7 @@ impl<T: Float> TMesh<T> {
 /// # Arguments
 /// * `u` - The parameter value to evaluate.
 /// * `knots` - A local knot vector of length 5: [u_i, u_{i+1}, u_{i+2}, u_{i+3}, u_{i+4}].
-pub fn cubic_basis_function<T: Float + AddAssign>(u: T, knots: &[T; 5]) -> T {
+pub fn cubic_basis_function<T: Float + NumAssign>(u: T, knots: &[T; 5]) -> T {
     // 1. Boundary check for the support [u_i, u_{i+4}]
     // Basis functions are non-zero only within their knot spans.
     if u < knots[0] || u > knots[4] {

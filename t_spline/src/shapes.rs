@@ -1,3 +1,4 @@
+use num_traits::Float;
 use crate::tmesh::control_point::ControlPoint;
 use crate::tmesh::direction::Direction;
 use crate::tmesh::face::Face;
@@ -7,8 +8,8 @@ use crate::tmesh::segment::ParamPoint;
 use crate::tmesh::*;
 use crate::*;
 
-impl TSpline<f64> {
-    pub fn new_unit_square() -> TSpline<f64> {
+impl<T: Float> TSpline<T>  {
+    pub fn new_unit_square() -> TSpline<T> {
         let mut mesh = TMesh {
             vertices: Vec::with_capacity(4),
             edges: Vec::with_capacity(8),
@@ -16,10 +17,10 @@ impl TSpline<f64> {
         };
 
         // 1. Define 4 Corner Vertices
-        let coords = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)];
+        let coords = [(T::zero(), T::zero()), (T::one(), T::zero()), (T::one(), T::one()), (T::zero(), T::one())];
         for (i, (s, t)) in coords.iter().enumerate() {
             mesh.vertices.push(ControlPoint {
-                geometry: Vector4::new(*s, *t, 0.0, 1.0),
+                geometry: Vector4::new(*s, *t, T::zero(), T::one()),
                 uv: ParamPoint { s: *s, t: *t },
                 outgoing_edge: Some(EdgeID(i)), // Inner edges are 0..4
                 is_t_junction: false,
@@ -69,7 +70,9 @@ impl TSpline<f64> {
 
         mesh.into()
     }
+}
 
+impl TSpline<f64> {
     /// Creates a simple T-Spline mesh with a T-junction, which is impossible
     /// to represent as a single NURBS patch.
     /// Topology:

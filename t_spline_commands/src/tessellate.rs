@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     pub fn it_can_tessellate_square() {
-        let square = TSpline::new_unit_square();
+        let square = TSpline::<f64>::new_unit_square();
         let resolution = 10;
         let points = square.apply(&mut Tessellate { resolution });
 

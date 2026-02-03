@@ -4,7 +4,6 @@ pub mod tmesh;
 
 pub use cgmath::Point3;
 pub use cgmath::Vector4;
-use std::ops::{Add, AddAssign};
 
 pub use crate::commands::{Command, CommandMut};
 use crate::tmesh::TMesh;
