@@ -1,5 +1,5 @@
-use crate::tmesh::TMesh;
-use cgmath::Point3;
+use t_spline::tmesh::TMesh;
+use t_spline::math::Point;
 use std::fmt::Write;
 
 #[derive(Debug, Default, Clone)]
@@ -9,7 +9,7 @@ pub struct ObjWriter {
 }
 
 impl ObjWriter {
-    pub fn with_points(mut self, name: &str, points: &[Point3<f64>]) -> Result<Self, std::fmt::Error> {
+    pub fn with_points(mut self, name: &str, points: &[Point]) -> Result<Self, std::fmt::Error> {
         let vertex_offset = self.vertex_count + 1;
         writeln!(self.obj, r"o {name}")?;
 

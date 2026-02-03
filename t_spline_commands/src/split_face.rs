@@ -1,11 +1,12 @@
-use crate::commands::CommandMut;
-use crate::tmesh::control_point::ControlPoint;
-use crate::tmesh::direction::Direction;
-use crate::tmesh::face::Face;
-use crate::tmesh::half_edge::HalfEdge;
-use crate::tmesh::ids::{EdgeID, FaceID, VertID};
-use crate::tmesh::segment::ParamPoint;
-use crate::tmesh::TMesh;
+use t_spline::CommandMut;
+use t_spline::tmesh::bounds::Bounds;
+use t_spline::tmesh::control_point::ControlPoint;
+use t_spline::tmesh::direction::Direction;
+use t_spline::tmesh::face::Face;
+use t_spline::tmesh::half_edge::HalfEdge;
+use t_spline::tmesh::ids::{EdgeID, FaceID, VertID};
+use t_spline::tmesh::segment::ParamPoint;
+use t_spline::tmesh::TMesh;
 
 pub struct SplitFace {
     pub face: FaceID,
@@ -22,22 +23,12 @@ impl CommandMut for SplitFace {
             return;
         }
 
-        let mut s_min = f64::MAX;
-        let mut s_max = f64::MIN;
-        let mut t_min = f64::MAX;
-        let mut t_max = f64::MIN;
-
-        for &e_id in &edges {
-            let v = mesh.vertex(mesh.edge(e_id).origin);
-            s_min = s_min.min(v.uv.s);
-            s_max = s_max.max(v.uv.s);
-            t_min = t_min.min(v.uv.t);
-            t_max = t_max.max(v.uv.t);
-        }
+        let mut bounds = Bounds::default();
+        bounds.add_face(mesh, self.face);
 
         let split_val = match self.direction {
-            Direction::S => (t_min + t_max) / 2.0, // Horizontal split (constant T)
-            Direction::T => (s_min + s_max) / 2.0, // Vertical split (constant S)
+            Direction::S => bounds.center().1, // Horizontal split (constant T)
+            Direction::T => bounds.center().0, // Vertical split (constant S)
         };
 
         // 2. Find intersecting edges
@@ -365,7 +356,7 @@ fn split_edge(mesh: &mut TMesh, edge_id: EdgeID, split_val: f64, split_dir: Dire
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::TSpline;
+    use t_spline::TSpline;
 
     #[test]
     fn it_splits_face_horizontally() {

@@ -1,0 +1,7 @@
+[package]
+name = "t-spline-io"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+t-spline = { path = "../t_spline" }

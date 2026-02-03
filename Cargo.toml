@@ -1,9 +1,8 @@
-[package]
-name = "t-spline"
-version = "0.1.0"
-edition = "2024"
+[workspace]
 
-[dependencies]
-thiserror = "2.0.18"
-cgmath = "0.18.0"
-rayon = "1.11.0"
+resolver = "3"
+members = [
+    "t_spline",
+    "t_spline_commands",
+    "t_spline_io"
+]

@@ -6,13 +6,12 @@ pub mod ids;
 pub mod segment;
 pub mod bounds;
 
-use cgmath::{Point3, Vector4};
 use crate::tmesh::control_point::ControlPoint;
 use crate::tmesh::direction::Direction;
 use crate::tmesh::face::Face;
 use crate::tmesh::half_edge::HalfEdge;
 use crate::tmesh::ids::{EdgeID, FaceID, VertID};
-use rayon::prelude::*;
+use crate::math::{Point, Vector};
 
 #[derive(Debug, Clone, Default)]
 pub struct TMesh {
@@ -81,18 +80,9 @@ impl TMesh {
         None
     }
 
-    pub fn knot_vectors(&self) -> Vec<LocalKnots> {
-        // calculate the knot_cache from the mesh
-        // do not allow edits to mesh after to ensure that the cache is correct
-        (0..self.vertices.len())
-            .into_par_iter()
-            .map(|v| self.infer_local_knots(VertID(v)))
-            .collect()
-    }
-
     /// Infers the local knot vectors for a specific control point.
     /// Returns (s_vector, t_vector).
-    fn infer_local_knots(&self, v_id: VertID) -> ([f64; 5], [f64; 5]) {
+    pub fn infer_local_knots(&self, v_id: VertID) -> ([f64; 5], [f64; 5]) {
         let s_knots = self.trace_local_knots(v_id, Direction::S);
         let t_knots = self.trace_local_knots(v_id, Direction::T);
 
@@ -320,8 +310,8 @@ impl TMesh {
         None
     }
 
-    pub fn subs(&self, (s, t): (f64, f64), knot_cache: &[LocalKnots]) -> Option<Point3<f64>> {
-        let mut numerator = Vector4::new(0.0, 0.0, 0.0, 0.0);
+    pub fn subs(&self, (s, t): (f64, f64), knot_cache: &[LocalKnots]) -> Option<Point> {
+        let mut numerator = Vector::new(0.0, 0.0, 0.0, 0.0);
         let mut denominator: f64 = 0.0;
 
         for (i, vert) in self.vertices.iter().enumerate() {
@@ -345,7 +335,7 @@ impl TMesh {
         }
 
         let result_homo = numerator / denominator;
-        Some(Point3::new(result_homo.x, result_homo.y, result_homo.z))
+        Some(Point::new(result_homo.x, result_homo.y, result_homo.z))
     }
 
     // /// Casts a ray in `direction` for `steps` topological units.

@@ -121,8 +121,22 @@ name = "t-spline"
 version = "0.1.0"
 dependencies = [
  "cgmath",
+]
+
+[[package]]
+name = "t-spline-commands"
+version = "0.1.0"
+dependencies = [
  "rayon",
+ "t-spline",
  "thiserror",
+]
+
+[[package]]
+name = "t-spline-io"
+version = "0.1.0"
+dependencies = [
+ "t-spline",
 ]
 
 [[package]]

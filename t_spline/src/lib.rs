@@ -1,12 +1,12 @@
 use cgmath::Vector4;
 
-pub mod commands;
-pub mod export;
 mod shapes;
 pub mod tmesh;
+mod commands;
+pub mod math;
 
-use crate::commands::{Command, CommandMut};
 use crate::tmesh::TMesh;
+pub use crate::commands::{Command, CommandMut};
 
 #[derive(Debug, Default, Clone)]
 pub struct TSpline {

@@ -1,11 +1,11 @@
 use crate::tmesh::ids::EdgeID;
 use crate::tmesh::segment::ParamPoint;
-use cgmath::Vector4;
+use crate::math::Vector;
 
 #[derive(Debug, Clone)]
 pub struct ControlPoint {
     /// Homogeneous coordinates (x, y, z, w) for rational surfaces
-    pub geometry: Vector4<f64>,
+    pub geometry: Vector,
     /// The parametric location (knot value) of this point
     pub uv: ParamPoint,
     /// Index of one half-edge starting at this vertex

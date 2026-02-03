@@ -1,9 +1,3 @@
-mod tessellate;
-mod split_face;
-
-pub use tessellate::*;
-pub use split_face::*;
-
 use crate::TSpline;
 use crate::tmesh::TMesh;
 
