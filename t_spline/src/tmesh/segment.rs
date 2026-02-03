@@ -1,4 +1,3 @@
-use num_traits::real::Real;
 use num_traits::{Num, NumCast, Signed, Zero};
 use std::ops::Sub;
 

@@ -1,4 +1,4 @@
-use num_traits::{Bounded, FromPrimitive, Num, NumAssign, NumCast, Signed};
+use num_traits::{Bounded, FromPrimitive, Num, NumAssign, Signed};
 use rayon::prelude::*;
 use std::fmt::Debug;
 use t_spline::tmesh::bounds::Bounds;

@@ -12,9 +12,7 @@ use crate::tmesh::face::Face;
 use crate::tmesh::half_edge::HalfEdge;
 use crate::tmesh::ids::{EdgeID, FaceID, VertID};
 use cgmath::{Point3, Vector4};
-use num_traits::float::FloatCore;
-use num_traits::real::Real;
-use num_traits::{Bounded, FromPrimitive, Num, NumAssign, NumCast, One, Signed, Zero};
+use num_traits::{Bounded, FromPrimitive, Num, NumAssign, One, Signed, Zero};
 use std::fmt::Debug;
 
 #[derive(Debug, Clone, Default)]

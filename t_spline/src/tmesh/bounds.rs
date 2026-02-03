@@ -1,9 +1,7 @@
 use crate::tmesh::TMesh;
 use crate::tmesh::control_point::ControlPoint;
 use crate::tmesh::ids::{EdgeID, FaceID};
-use fixed::traits::Fixed;
-use num_traits::real::Real;
-use num_traits::{Bounded, FromPrimitive, Num, NumCast};
+use num_traits::{Bounded, FromPrimitive, Num};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Bounds<T> {

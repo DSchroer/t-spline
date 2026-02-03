@@ -6,7 +6,6 @@ use crate::tmesh::ids::{EdgeID, FaceID, VertID};
 use crate::tmesh::segment::ParamPoint;
 use crate::tmesh::*;
 use crate::*;
-use num_traits::real::Real;
 use num_traits::{One, Zero};
 
 impl<T: Num + Zero + One + Copy> TSpline<T> {
