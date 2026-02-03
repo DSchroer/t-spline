@@ -6,6 +6,7 @@ pub mod ids;
 pub mod segment;
 pub mod bounds;
 
+use cgmath::{Point3, Vector4};
 use crate::tmesh::control_point::ControlPoint;
 use crate::tmesh::direction::Direction;
 use crate::tmesh::face::Face;
@@ -91,7 +92,7 @@ impl TMesh {
 
     /// Infers the local knot vectors for a specific control point.
     /// Returns (s_vector, t_vector).
-    pub fn infer_local_knots(&self, v_id: VertID) -> ([f64; 5], [f64; 5]) {
+    fn infer_local_knots(&self, v_id: VertID) -> ([f64; 5], [f64; 5]) {
         let s_knots = self.trace_local_knots(v_id, Direction::S);
         let t_knots = self.trace_local_knots(v_id, Direction::T);
 
@@ -112,9 +113,9 @@ impl TMesh {
 
         // Apply boundary shifts to ensure open knot vectors (multiplicity 4 at boundaries)
         if neg[0] == c && neg[1] == c {
-            knots = [c, c, c, c, pos[0]];
+            knots = [c, c, c, c, pos[1]];
         } else if pos[0] == c && pos[1] == c {
-            knots = [neg[0], c, c, c, c];
+            knots = [neg[1], c, c, c, c];
         }
 
         knots
@@ -319,6 +320,34 @@ impl TMesh {
         None
     }
 
+    pub fn subs(&self, (s, t): (f64, f64), knot_cache: &[LocalKnots]) -> Option<Point3<f64>> {
+        let mut numerator = Vector4::new(0.0, 0.0, 0.0, 0.0);
+        let mut denominator: f64 = 0.0;
+
+        for (i, vert) in self.vertices.iter().enumerate() {
+            let (s_knots, t_knots) = &knot_cache[i];
+
+            // Quick AABB check in parameter space
+            if s < s_knots[0] || s > s_knots[4] || t < t_knots[0] || t > t_knots[4] {
+                continue;
+            }
+
+            let basis_s = cubic_basis_function(s, s_knots);
+            let basis_t = cubic_basis_function(t, t_knots);
+            let basis = basis_s * basis_t * vert.geometry.w;
+
+            numerator += vert.geometry * basis;
+            denominator += basis;
+        }
+
+        if denominator == 0. {
+            return None;
+        }
+
+        let result_homo = numerator / denominator;
+        Some(Point3::new(result_homo.x, result_homo.y, result_homo.z))
+    }
+
     // /// Casts a ray in `direction` for `steps` topological units.
     // /// Returns the coordinate found.
     // fn cast_ray_for_knot(&self, start_v: VertID, dir: Direction, steps: i32) -> f64 {
@@ -441,6 +470,58 @@ impl TMesh {
     //     // Logic to inspect neighbors and determine if T points up/down (T) or left/right (S)
     //     Direction::S // Stub
     // }
+}
+
+/// Evaluates a univariate cubic B-spline basis function.
+///
+/// # Arguments
+/// * `u` - The parameter value to evaluate.
+/// * `knots` - A local knot vector of length 5: [u_i, u_{i+1}, u_{i+2}, u_{i+3}, u_{i+4}].
+pub fn cubic_basis_function(u: f64, knots: &[f64; 5]) -> f64 {
+    // 1. Boundary check for the support [u_i, u_{i+4}]
+    // Basis functions are non-zero only within their knot spans.
+    if u < knots[0] || u > knots[4] {
+        return 0.0;
+    }
+
+    // Clamp u to be strictly inside the support for the half-open interval logic,
+    // effectively taking the limit from the left at the boundary.
+    let u_eval = if u >= knots[4] { knots[4] - 1e-14 } else { u };
+
+    // 2. Initialize the 0th degree basis (step functions)
+    // There are 4 intervals defined by 5 knots.
+    let mut n = [0.0; 4];
+    for i in 0..4 {
+        // Standard half-open interval check [t_i, t_{i+1})
+        if u_eval >= knots[i] && u_eval < knots[i + 1] {
+            n[i] = 1.0;
+        }
+    }
+
+    // 3. Iteratively calculate higher degrees up to degree 3
+    for p in 1..=3 {
+        // In each degree layer, we calculate (4 - p) basis functions
+        for i in 0..(4 - p) {
+            let mut val = 0.0;
+
+            // Left term: ((u - u_i) / (u_{i+p} - u_i)) * N_{i, p-1}(u)
+            let den1 = knots[i + p] - knots[i];
+            if den1 != 0.0 {
+                val += ((u - knots[i]) / den1) * n[i];
+            }
+
+            // Right term: ((u_{i+p+1} - u) / (u_{i+p+1} - u_{i+1})) * N_{i+1, p-1}(u)
+            let den2 = knots[i + p + 1] - knots[i + 1];
+            if den2 != 0.0 {
+                val += ((knots[i + p + 1] - u) / den2) * n[i + 1];
+            }
+
+            n[i] = val;
+        }
+    }
+
+    // The result N_{i,3} is now at n
+    n[0]
 }
 
 #[cfg(test)]
