@@ -1,7 +1,6 @@
-use crate::models::ids::{EdgeID};
+use crate::models::ids::EdgeID;
 
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Face {
     pub edge: EdgeID,
 }

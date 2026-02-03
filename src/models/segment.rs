@@ -10,27 +10,32 @@ pub struct ParamPoint {
 
 impl ParamPoint {
     fn cross(&self, rhs: &Self) -> f64 {
-        self.s*rhs.t - self.t*rhs.s
+        self.s * rhs.t - self.t * rhs.s
     }
 
     fn orient(a: ParamPoint, b: ParamPoint, c: ParamPoint) -> f64 {
-        (b-a).cross(&(c-a))
+        (b - a).cross(&(c - a))
     }
 
     fn on_segment(p: ParamPoint, a: ParamPoint, b: ParamPoint) -> bool {
-        p.s <= f64::max(a.s, b.s) && p.s >= f64::min(a.s, b.s) &&
-        p.t <= f64::max(a.t, b.t) && p.t >= f64::min(a.t, b.t)
+        p.s <= f64::max(a.s, b.s)
+            && p.s >= f64::min(a.s, b.s)
+            && p.t <= f64::max(a.t, b.t)
+            && p.t >= f64::min(a.t, b.t)
     }
 }
 
 #[derive(Debug)]
-pub struct Segment { pub start: ParamPoint, pub end: ParamPoint }
+pub struct Segment {
+    pub start: ParamPoint,
+    pub end: ParamPoint,
+}
 
 impl Sub for ParamPoint {
     type Output = ParamPoint;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self::Output{
+        Self::Output {
             s: self.s - rhs.s,
             t: self.t - rhs.t,
         }
@@ -38,7 +43,6 @@ impl Sub for ParamPoint {
 }
 
 impl Segment {
-
     /// Determine if two segments intersect.
     pub fn intersects(&self, other: &Segment) -> bool {
         let oa = ParamPoint::orient(other.start, other.end, self.start);
@@ -53,16 +57,24 @@ impl Segment {
 
         // Special Cases: segments are collinear or touching at an endpoint.
         // Check if self.start lies on the 'other' segment.
-        if oa.abs() < 1e-9 && ParamPoint::on_segment(self.start, other.start, other.end) { return true; }
+        if oa.abs() < 1e-9 && ParamPoint::on_segment(self.start, other.start, other.end) {
+            return true;
+        }
 
         // Check if self.end lies on the 'other' segment.
-        if ob.abs() < 1e-9 && ParamPoint::on_segment(self.end, other.start, other.end) { return true; }
+        if ob.abs() < 1e-9 && ParamPoint::on_segment(self.end, other.start, other.end) {
+            return true;
+        }
 
         // Check if other.start lies on the 'self' segment.
-        if oc.abs() < 1e-9 && ParamPoint::on_segment(other.start, self.start, self.end) { return true; }
+        if oc.abs() < 1e-9 && ParamPoint::on_segment(other.start, self.start, self.end) {
+            return true;
+        }
 
         // Check if other.end lies on the 'self' segment.
-        if od.abs() < 1e-9 && ParamPoint::on_segment(other.end, self.start, self.end) { return true; }
+        if od.abs() < 1e-9 && ParamPoint::on_segment(other.end, self.start, self.end) {
+            return true;
+        }
 
         false
     }
@@ -77,7 +89,10 @@ mod tests {
         // Helper to create points easily
         let p = |s: f64, t: f64| ParamPoint { s, t };
         // Helper to create segments
-        let seg = |s1, t1, s2, t2| Segment { start: p(s1, t1), end: p(s2, t2) };
+        let seg = |s1, t1, s2, t2| Segment {
+            start: p(s1, t1),
+            end: p(s2, t2),
+        };
 
         let cases = vec![
             // 1. Identical segments (Collinear overlap)
@@ -102,7 +117,10 @@ mod tests {
         // Helper to create points easily
         let p = |s: f64, t: f64| ParamPoint { s, t };
         // Helper to create segments
-        let seg = |s1, t1, s2, t2| Segment { start: p(s1, t1), end: p(s2, t2) };
+        let seg = |s1, t1, s2, t2| Segment {
+            start: p(s1, t1),
+            end: p(s2, t2),
+        };
 
         let cases = vec![
             // Parallel lines (distinct)

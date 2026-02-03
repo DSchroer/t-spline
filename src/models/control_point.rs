@@ -1,6 +1,6 @@
-use cgmath::Vector4;
-use crate::models::ids::{EdgeID};
 use crate::models::ParamPoint;
+use crate::models::ids::EdgeID;
+use cgmath::Vector4;
 
 #[derive(Debug, Clone)]
 pub struct ControlPoint {

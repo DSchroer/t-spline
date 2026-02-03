@@ -1,4 +1,5 @@
 use crate::models::*;
+use rayon::prelude::*;
 
 #[derive(Debug, Clone, Default)]
 pub struct TMesh {
@@ -7,12 +8,25 @@ pub struct TMesh {
     pub faces: Vec<Face>,
 }
 
+pub type LocalKnots = ([f64; 5], [f64; 5]);
+
+pub struct Bounds {
+    pub s: (f64, f64),
+    pub t: (f64, f64),
+}
+
 impl TMesh {
-    pub fn vertex(&self, id: VertID) -> &ControlPoint { &self.vertices[id.0] }
+    pub fn vertex(&self, id: VertID) -> &ControlPoint {
+        &self.vertices[id.0]
+    }
 
-    pub fn edge(&self, id: EdgeID) -> &HalfEdge { &self.edges[id.0] }
+    pub fn edge(&self, id: EdgeID) -> &HalfEdge {
+        &self.edges[id.0]
+    }
 
-    pub fn face(&self, id: FaceID) -> &Face { &self.faces[id.0] }
+    pub fn face(&self, id: FaceID) -> &Face {
+        &self.faces[id.0]
+    }
 
     pub fn face_edges(&self, face_id: FaceID) -> Vec<EdgeID> {
         let start_edge = self.faces[face_id.0].edge;
@@ -22,7 +36,9 @@ impl TMesh {
         loop {
             edges.push(curr);
             curr = self.edge(curr).next;
-            if curr == start_edge { break; }
+            if curr == start_edge {
+                break;
+            }
         }
         edges
     }
@@ -50,9 +66,48 @@ impl TMesh {
                 break;
             }
 
-            if curr == first_edge { break; }
+            if curr == first_edge {
+                break;
+            }
         }
         None
+    }
+
+    pub fn bounds(&self) -> Bounds {
+        let mut s_min = f64::MAX;
+        let mut s_max = f64::MIN;
+
+        let mut t_min = f64::MAX;
+        let mut t_max = f64::MIN;
+        for v in &self.vertices {
+            if v.uv.s < s_min {
+                s_min = v.uv.s;
+            }
+            if v.uv.s > s_max {
+                s_max = v.uv.s;
+            }
+
+            if v.uv.t < t_min {
+                t_min = v.uv.t;
+            }
+            if v.uv.t > t_max {
+                t_max = v.uv.t;
+            }
+        }
+
+        Bounds {
+            s: (s_min, s_max),
+            t: (t_min, t_max),
+        }
+    }
+
+    pub fn knot_vectors(&self) -> Vec<LocalKnots> {
+        // calculate the knot_cache from the mesh
+        // do not allow edits to mesh after to ensure that the cache is correct
+        (0..self.vertices.len())
+            .into_par_iter()
+            .map(|v| self.infer_local_knots(VertID(v)))
+            .collect()
     }
 
     /// Infers the local knot vectors for a specific control point.
@@ -62,9 +117,9 @@ impl TMesh {
         let (s2, t2) = (v.uv.s, v.uv.t);
 
         // Trace two knots in each of the four cardinal directions
-        let s_pos = self.trace_knots(v_id, Direction::S, true);  // s3, s4
+        let s_pos = self.trace_knots(v_id, Direction::S, true); // s3, s4
         let s_neg = self.trace_knots(v_id, Direction::S, false); // s1, s0
-        let t_pos = self.trace_knots(v_id, Direction::T, true);  // t3, t4
+        let t_pos = self.trace_knots(v_id, Direction::T, true); // t3, t4
         let t_neg = self.trace_knots(v_id, Direction::T, false); // t1, t0
 
         let mut s_knots = [s_neg[1], s_neg[0], s2, s_pos[0], s_pos[1]];
@@ -108,17 +163,17 @@ impl TMesh {
             } else {
                 // Fallback: Check if the ray passes through a face and hits an edge
                 if let Some(coord) = self.find_face_intersection(current_v, axis, positive) {
-                     results[found_count] = coord;
-                     found_count += 1;
-                     
-                     // If we hit a face edge (not a vertex), we treat it as a boundary 
-                     // or a hard stop for this simple implementation.
-                     let last_knot = coord;
-                     while found_count < 2 {
+                    results[found_count] = coord;
+                    found_count += 1;
+
+                    // If we hit a face edge (not a vertex), we treat it as a boundary
+                    // or a hard stop for this simple implementation.
+                    let last_knot = coord;
+                    while found_count < 2 {
                         results[found_count] = last_knot;
                         found_count += 1;
-                     }
-                     break;
+                    }
+                    break;
                 }
 
                 // Boundary Condition: If the ray hits the edge of the T-mesh (and no face covers it),
@@ -143,18 +198,23 @@ impl TMesh {
 
     /// Searches for an intersection with any edge of the faces incident to `start_v`
     /// along the specified ray.
-    fn find_face_intersection(&self, start_v: VertID, axis: Direction, positive: bool) -> Option<f64> {
+    fn find_face_intersection(
+        &self,
+        start_v: VertID,
+        axis: Direction,
+        positive: bool,
+    ) -> Option<f64> {
         let v = &self.vertices[start_v.0];
         let start_edge = v.outgoing_edge?;
         let mut curr_spoke = start_edge;
-        
+
         let mut closest_dist = f64::MAX;
         let mut found_coord = None;
 
         // Iterate over all incident faces
         loop {
             let spoke_edge = &self.edges[curr_spoke.0];
-            
+
             if let Some(face_id) = spoke_edge.face {
                 // Iterate edges of this face
                 let face_edges = self.face_edges(face_id);
@@ -165,7 +225,7 @@ impl TMesh {
                     let p2 = if let Some(twin) = edge.twin {
                         &self.vertices[self.edges[twin.0].origin.0].uv
                     } else {
-                        // If no twin, find vertex that 'next' points to? 
+                        // If no twin, find vertex that 'next' points to?
                         // Actually 'next' starts at p2. So:
                         &self.vertices[self.edges[edge.next.0].origin.0].uv
                     };
@@ -173,12 +233,12 @@ impl TMesh {
                     // Check intersection
                     // Ray: constant component = v.uv.{other}, variable component > v.uv.{axis}
                     // Edge: p1 to p2
-                    
+
                     let (ray_const, ray_start) = match axis {
                         Direction::S => (v.uv.t, v.uv.s),
                         Direction::T => (v.uv.s, v.uv.t),
                     };
-                    
+
                     let (e_p1_const, e_p1_var) = match axis {
                         Direction::S => (p1.t, p1.s),
                         Direction::T => (p1.s, p1.t),
@@ -192,20 +252,20 @@ impl TMesh {
                     // Careful with floating point epsilon
                     let min_c = e_p1_const.min(e_p2_const);
                     let max_c = e_p1_const.max(e_p2_const);
-                    
+
                     if ray_const >= min_c - 1e-9 && ray_const <= max_c + 1e-9 {
                         // Edge crosses or touches the ray line.
                         // But we must exclude the start vertex itself (which is p1 or p2)
                         // Distance check handles this if we ensure dist > epsilon
-                        
+
                         // Intersection calculation (linear interpolation)
                         // C = p1.c + t * (p2.c - p1.c) => t = (C - p1.c) / (p2.c - p1.c)
                         // Var = p1.v + t * (p2.v - p1.v)
-                        
+
                         let intersect_var = if (e_p2_const - e_p1_const).abs() < 1e-12 {
                             // Edge is parallel to ray? Then it must be collinear.
                             // If collinear, we pick the point closest to ray_start but > ray_start
-                            // This case usually handled by find_next_vertex_in_direction, but 
+                            // This case usually handled by find_next_vertex_in_direction, but
                             // if that failed, maybe we found a detached edge? Unlikely in valid mesh.
                             // Ignore parallel edges in this fallback.
                             continue;
@@ -215,7 +275,7 @@ impl TMesh {
                         };
 
                         let dist = intersect_var - ray_start;
-                        
+
                         if (positive && dist > 1e-6) || (!positive && dist < -1e-6) {
                             if dist.abs() < closest_dist {
                                 closest_dist = dist.abs();
@@ -230,16 +290,23 @@ impl TMesh {
             if let Some(twin_id) = spoke_edge.twin {
                 curr_spoke = self.edges[twin_id.0].next;
             } else {
-                break; 
+                break;
             }
-            if curr_spoke == start_edge { break; }
+            if curr_spoke == start_edge {
+                break;
+            }
         }
-        
+
         found_coord
     }
 
     /// Helper to find the next vertex along the mesh edges in a specific direction.
-    fn find_next_vertex_in_direction(&self, v_id: VertID, axis: Direction, positive: bool) -> Option<VertID> {
+    fn find_next_vertex_in_direction(
+        &self,
+        v_id: VertID,
+        axis: Direction,
+        positive: bool,
+    ) -> Option<VertID> {
         let v = &self.vertices[v_id.0];
         let start_edge = v.outgoing_edge?;
         let mut curr_e_id = start_edge;
@@ -267,7 +334,9 @@ impl TMesh {
 
             // Circulate to the next outgoing edge at this vertex
             curr_e_id = self.edges[edge.prev.0].twin?;
-            if curr_e_id == start_edge { break; }
+            if curr_e_id == start_edge {
+                break;
+            }
         }
         None
     }
