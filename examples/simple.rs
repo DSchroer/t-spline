@@ -1,15 +1,15 @@
 use std::error::Error;
 use t_spline::TSpline;
 use t_spline::commands::{Command, Tessellate};
-use t_spline::export::PlyWriter;
+use t_spline::export::{ObjWriter};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let spline = TSpline::new_simple();
     let points = Tessellate { resolution: 100 }.apply(&spline);
 
-    PlyWriter::default()
-        .with_point(&points)?
-        // .with_geometry(&spline.mesh())?
+    ObjWriter::default()
+        .with_points("surface", &points)?
+        .with_control_surface("control", &spline.mesh())?
         .write(&mut std::io::stdout())?;
 
     Ok(())
