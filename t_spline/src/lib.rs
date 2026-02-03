@@ -1,13 +1,13 @@
+mod commands;
 mod shapes;
 pub mod tmesh;
-mod commands;
 
-use std::ops::{Add, AddAssign};
-pub use cgmath::Vector4;
 pub use cgmath::Point3;
+pub use cgmath::Vector4;
+use std::ops::{Add, AddAssign};
 
-use crate::tmesh::TMesh;
 pub use crate::commands::{Command, CommandMut};
+use crate::tmesh::TMesh;
 
 #[derive(Debug, Default, Clone)]
 pub struct TSpline<T> {

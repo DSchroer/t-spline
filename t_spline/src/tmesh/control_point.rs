@@ -1,6 +1,6 @@
-use cgmath::Vector4;
 use crate::tmesh::ids::EdgeID;
 use crate::tmesh::segment::ParamPoint;
+use cgmath::Vector4;
 
 #[derive(Debug, Clone)]
 pub struct ControlPoint<T> {

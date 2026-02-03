@@ -1,10 +1,10 @@
-use std::fmt::Debug;
 use num_traits::{Float, NumAssign};
-use t_spline::{Command, Point3};
-use t_spline::tmesh::{LocalKnots, TMesh};
 use rayon::prelude::*;
+use std::fmt::Debug;
 use t_spline::tmesh::bounds::Bounds;
 use t_spline::tmesh::ids::VertID;
+use t_spline::tmesh::{LocalKnots, TMesh};
+use t_spline::{Command, Point3};
 
 pub struct Tessellate {
     pub resolution: usize,
@@ -21,9 +21,7 @@ impl<T: Float + NumAssign + Debug + Send + Sync> Command<T> for Tessellate {
 
         (0..self.resolution * self.resolution)
             .into_par_iter()
-            .map(|i| {
-                mesh.subs(bounds.interpolate(i, self.resolution), &knot_cache)
-            })
+            .map(|i| mesh.subs(bounds.interpolate(i, self.resolution), &knot_cache))
             .filter_map(|p| p)
             .collect()
     }
@@ -38,9 +36,9 @@ fn knot_vectors<T: Float + Send + Sync>(mesh: &TMesh<T>) -> Vec<LocalKnots<T>> {
 
 #[cfg(test)]
 mod tests {
-    use t_spline::tmesh::ids::FaceID;
     use super::*;
     use t_spline::TSpline;
+    use t_spline::tmesh::ids::FaceID;
 
     #[test]
     pub fn it_can_evaluate_points_on_square() {
@@ -57,7 +55,7 @@ mod tests {
         );
         assert_eq!(
             Some(Point3::new(0., 1., 0.)),
-            square.mesh().subs( (0.0, 1.0), &knots)
+            square.mesh().subs((0.0, 1.0), &knots)
         );
         assert_eq!(
             Some(Point3::new(1., 1., 0.)),
@@ -82,7 +80,7 @@ mod tests {
     pub fn it_can_evaluate_center() {
         let square = TSpline::new_unit_square();
         let knots = knot_vectors(square.mesh());
-        let center = square.mesh().subs( (0.5, 0.5), &knots).unwrap();
+        let center = square.mesh().subs((0.5, 0.5), &knots).unwrap();
 
         // Check components with epsilon tolerance
         let expected = Point3::new(0.5, 0.5, 0.0);

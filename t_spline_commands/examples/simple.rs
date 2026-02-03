@@ -1,7 +1,7 @@
 use std::error::Error;
-use t_spline::TSpline;
-use t_spline::commands::{Command, Tessellate};
-use t_spline::export::{ObjWriter};
+use t_spline::{Command, TSpline};
+use t_spline_commands::tessellate::Tessellate;
+use t_spline_io::obj_writer::ObjWriter;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let spline = TSpline::new_simple();

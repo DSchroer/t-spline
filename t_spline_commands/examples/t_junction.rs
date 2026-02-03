@@ -1,13 +1,13 @@
 use std::error::Error;
-use t_spline::TSpline;
-use t_spline::commands::{Command, Tessellate};
-use t_spline::export::{ObjWriter};
+use t_spline::{Command, TSpline};
+use t_spline_io::obj_writer::ObjWriter;
 use t_spline::tmesh::TMesh;
+use t_spline_commands::tessellate::Tessellate;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut spline = TSpline::new_t_junction();
 
-    spline.apply_mut(&mut |m: &mut TMesh| {
+    spline.apply_mut(&mut |m: &mut TMesh<f64>| {
         let j = m.vertices.iter_mut().find(|v| v.is_t_junction).unwrap();
 
         j.geometry.z = 0.5;

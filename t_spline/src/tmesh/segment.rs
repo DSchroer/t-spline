@@ -1,5 +1,5 @@
-use std::ops::Sub;
 use num_traits::Float;
+use std::ops::Sub;
 
 #[derive(Debug, Copy, Clone)]
 pub struct ParamPoint<T> {
@@ -58,22 +58,30 @@ impl<T: Float> Segment<T> {
 
         // Special Cases: segments are collinear or touching at an endpoint.
         // Check if self.start lies on the 'other' segment.
-        if oa.abs() < T::from(1e-9).unwrap() && ParamPoint::on_segment(self.start, other.start, other.end) {
+        if oa.abs() < T::from(1e-9).unwrap()
+            && ParamPoint::on_segment(self.start, other.start, other.end)
+        {
             return true;
         }
 
         // Check if self.end lies on the 'other' segment.
-        if ob.abs() < T::from(1e-9).unwrap() && ParamPoint::on_segment(self.end, other.start, other.end) {
+        if ob.abs() < T::from(1e-9).unwrap()
+            && ParamPoint::on_segment(self.end, other.start, other.end)
+        {
             return true;
         }
 
         // Check if other.start lies on the 'self' segment.
-        if oc.abs() < T::from(1e-9).unwrap() && ParamPoint::on_segment(other.start, self.start, self.end) {
+        if oc.abs() < T::from(1e-9).unwrap()
+            && ParamPoint::on_segment(other.start, self.start, self.end)
+        {
             return true;
         }
 
         // Check if other.end lies on the 'self' segment.
-        if od.abs() < T::from(1e-9).unwrap() && ParamPoint::on_segment(other.end, self.start, self.end) {
+        if od.abs() < T::from(1e-9).unwrap()
+            && ParamPoint::on_segment(other.end, self.start, self.end)
+        {
             return true;
         }
 

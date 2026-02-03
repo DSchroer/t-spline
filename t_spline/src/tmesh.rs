@@ -1,20 +1,20 @@
+pub mod bounds;
 pub mod control_point;
 pub mod direction;
 pub mod face;
 pub mod half_edge;
 pub mod ids;
 pub mod segment;
-pub mod bounds;
 
-use std::fmt::Debug;
-use std::ops::{AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
-use cgmath::{Point3, Vector4};
-use num_traits::{Float, NumAssign};
 use crate::tmesh::control_point::ControlPoint;
 use crate::tmesh::direction::Direction;
 use crate::tmesh::face::Face;
 use crate::tmesh::half_edge::HalfEdge;
 use crate::tmesh::ids::{EdgeID, FaceID, VertID};
+use cgmath::{Point3, Vector4};
+use num_traits::{Float, NumAssign};
+use std::fmt::Debug;
+use std::ops::{AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
 
 #[derive(Debug, Clone, Default)]
 pub struct TMesh<T> {
@@ -97,7 +97,7 @@ impl<T: Float> TMesh<T> {
         let v = self.vertex(v_id);
         let c = match direction {
             Direction::S => v.uv.s,
-            Direction::T => v.uv.t
+            Direction::T => v.uv.t,
         };
 
         // Trace two knots in each of the four cardinal directions
@@ -227,7 +227,9 @@ impl<T: Float> TMesh<T> {
                     let min_c = e_p1_const.min(e_p2_const);
                     let max_c = e_p1_const.max(e_p2_const);
 
-                    if ray_const >= min_c - T::from(1e-9).unwrap() && ray_const <= max_c + T::from(1e-9).unwrap() {
+                    if ray_const >= min_c - T::from(1e-9).unwrap()
+                        && ray_const <= max_c + T::from(1e-9).unwrap()
+                    {
                         // Edge crosses or touches the ray line.
                         // But we must exclude the start vertex itself (which is p1 or p2)
                         // Distance check handles this if we ensure dist > epsilon
@@ -236,25 +238,28 @@ impl<T: Float> TMesh<T> {
                         // C = p1.c + t * (p2.c - p1.c) => t = (C - p1.c) / (p2.c - p1.c)
                         // Var = p1.v + t * (p2.v - p1.v)
 
-                        let intersect_var = if (e_p2_const - e_p1_const).abs() < T::from(1e-12).unwrap() {
-                            // Edge is parallel to ray? Then it must be collinear.
-                            // If collinear, we pick the point closest to ray_start but > ray_start
-                            // This case usually handled by find_next_vertex_in_direction, but
-                            // if that failed, maybe we found a detached edge? Unlikely in valid mesh.
-                            // Ignore parallel edges in this fallback.
-                            continue;
-                        } else {
-                            let t = (ray_const - e_p1_const) / (e_p2_const - e_p1_const);
-                            e_p1_var + t * (e_p2_var - e_p1_var)
-                        };
+                        let intersect_var =
+                            if (e_p2_const - e_p1_const).abs() < T::from(1e-12).unwrap() {
+                                // Edge is parallel to ray? Then it must be collinear.
+                                // If collinear, we pick the point closest to ray_start but > ray_start
+                                // This case usually handled by find_next_vertex_in_direction, but
+                                // if that failed, maybe we found a detached edge? Unlikely in valid mesh.
+                                // Ignore parallel edges in this fallback.
+                                continue;
+                            } else {
+                                let t = (ray_const - e_p1_const) / (e_p2_const - e_p1_const);
+                                e_p1_var + t * (e_p2_var - e_p1_var)
+                            };
 
                         let dist = intersect_var - ray_start;
 
-                        if ((positive && dist > T::from(1e-6).unwrap()) || (!positive && dist < T::from(-1e-6).unwrap()))
-                            && dist.abs() < closest_dist {
-                                closest_dist = dist.abs();
-                                found_coord = Some(intersect_var);
-                            }
+                        if ((positive && dist > T::from(1e-6).unwrap())
+                            || (!positive && dist < T::from(-1e-6).unwrap()))
+                            && dist.abs() < closest_dist
+                        {
+                            closest_dist = dist.abs();
+                            found_coord = Some(intersect_var);
+                        }
                     }
                 }
             }
@@ -301,7 +306,10 @@ impl<T: Float> TMesh<T> {
                 Direction::T => (dest_v.uv.s - v.uv.s).abs() < T::from(1e-12).unwrap(),
             };
 
-            if is_collinear && ((positive && delta > T::from(1e-12).unwrap()) || (!positive && delta < -T::from(1e-12).unwrap())) {
+            if is_collinear
+                && ((positive && delta > T::from(1e-12).unwrap())
+                    || (!positive && delta < -T::from(1e-12).unwrap()))
+            {
                 return Some(dest_id);
             }
 
@@ -313,8 +321,6 @@ impl<T: Float> TMesh<T> {
         }
         None
     }
-
-
 
     // /// Casts a ray in `direction` for `steps` topological units.
     // /// Returns the coordinate found.
@@ -454,7 +460,11 @@ pub fn cubic_basis_function<T: Float + AddAssign>(u: T, knots: &[T; 5]) -> T {
 
     // Clamp u to be strictly inside the support for the half-open interval logic,
     // effectively taking the limit from the left at the boundary.
-    let u_eval = if u >= knots[4] { knots[4] - T::epsilon() } else { u };
+    let u_eval = if u >= knots[4] {
+        knots[4] - T::epsilon()
+    } else {
+        u
+    };
 
     // 2. Initialize the 0th degree basis (step functions)
     // There are 4 intervals defined by 5 knots.

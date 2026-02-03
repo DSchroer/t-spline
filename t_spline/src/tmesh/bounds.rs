@@ -1,6 +1,6 @@
+use crate::tmesh::TMesh;
 use crate::tmesh::control_point::ControlPoint;
 use crate::tmesh::ids::{EdgeID, FaceID};
-use crate::tmesh::TMesh;
 use num_traits::Float;
 
 #[derive(Debug, Clone, Copy)]
@@ -11,7 +11,7 @@ pub struct Bounds<T> {
 
 impl<T: Float> Default for Bounds<T> {
     fn default() -> Self {
-        Self{
+        Self {
             s: (T::max_value(), T::min_value()),
             t: (T::max_value(), T::min_value()),
         }
@@ -26,7 +26,10 @@ impl<T: Float> Bounds<T> {
 
     /// Center of the ST Bounds
     pub fn center(&self) -> (T, T) {
-        ((self.s.0 + self.s.1) / T::from(2).unwrap(), (self.t.0 + self.t.1) / T::from(2).unwrap())
+        (
+            (self.s.0 + self.s.1) / T::from(2).unwrap(),
+            (self.t.0 + self.t.1) / T::from(2).unwrap(),
+        )
     }
 
     /// Point i in a grid of resolution * resolution
@@ -74,5 +77,4 @@ impl<T: Float> Bounds<T> {
         self.t.0 = self.t.0.min(point.uv.t);
         self.t.1 = self.t.1.max(point.uv.t);
     }
-
 }

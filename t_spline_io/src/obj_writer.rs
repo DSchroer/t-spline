@@ -1,15 +1,19 @@
-use t_spline::tmesh::TMesh;
 use std::fmt::{Display, Write};
 use t_spline::Point3;
+use t_spline::tmesh::TMesh;
 
 #[derive(Debug, Default, Clone)]
 pub struct ObjWriter {
     obj: String,
-    vertex_count: usize
+    vertex_count: usize,
 }
 
 impl ObjWriter {
-    pub fn with_points<T: Display>(mut self, name: &str, points: &[Point3<T>]) -> Result<Self, std::fmt::Error> {
+    pub fn with_points<T: Display>(
+        mut self,
+        name: &str,
+        points: &[Point3<T>],
+    ) -> Result<Self, std::fmt::Error> {
         let vertex_offset = self.vertex_count + 1;
         writeln!(self.obj, r"o {name}")?;
 
@@ -27,7 +31,11 @@ impl ObjWriter {
         Ok(self)
     }
 
-    pub fn with_control_surface<T: Display>(mut self, name: &str,  mesh: &TMesh<T>) -> Result<Self, std::fmt::Error> {
+    pub fn with_control_surface<T: Display>(
+        mut self,
+        name: &str,
+        mesh: &TMesh<T>,
+    ) -> Result<Self, std::fmt::Error> {
         let vertex_offset = self.vertex_count + 1;
         writeln!(self.obj, r"o {name}")?;
 
