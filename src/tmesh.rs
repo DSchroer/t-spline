@@ -287,12 +287,11 @@ impl TMesh {
 
                         let dist = intersect_var - ray_start;
 
-                        if (positive && dist > 1e-6) || (!positive && dist < -1e-6) {
-                            if dist.abs() < closest_dist {
+                        if ((positive && dist > 1e-6) || (!positive && dist < -1e-6))
+                            && dist.abs() < closest_dist {
                                 closest_dist = dist.abs();
                                 found_coord = Some(intersect_var);
                             }
-                        }
                     }
                 }
             }
