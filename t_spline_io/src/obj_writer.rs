@@ -1,6 +1,6 @@
-use std::fmt::{Display, Write};
-use t_spline::Point3;
+use std::fmt::Write;
 use t_spline::tmesh::TMesh;
+use t_spline::{Numeric, Point3};
 
 #[derive(Debug, Default, Clone)]
 pub struct ObjWriter {
@@ -9,7 +9,7 @@ pub struct ObjWriter {
 }
 
 impl ObjWriter {
-    pub fn with_points<T: Display>(
+    pub fn with_points<T: Numeric + 'static>(
         mut self,
         name: &str,
         points: &[Point3<T>],
@@ -31,7 +31,7 @@ impl ObjWriter {
         Ok(self)
     }
 
-    pub fn with_control_surface<T: Display>(
+    pub fn with_control_surface<T: Numeric + 'static>(
         mut self,
         name: &str,
         mesh: &TMesh<T>,

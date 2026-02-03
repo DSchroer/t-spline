@@ -6,14 +6,14 @@ pub mod half_edge;
 pub mod ids;
 pub mod segment;
 
+use crate::Numeric;
 use crate::tmesh::control_point::ControlPoint;
 use crate::tmesh::direction::Direction;
 use crate::tmesh::face::Face;
 use crate::tmesh::half_edge::HalfEdge;
 use crate::tmesh::ids::{EdgeID, FaceID, VertID};
-use cgmath::{Point3, Vector4};
-use num_traits::{Bounded, FromPrimitive, Num, NumAssign, One, Signed, Zero};
-use std::fmt::Debug;
+use alloc::vec::Vec;
+use nalgebra::{Point3, Vector4};
 
 #[derive(Debug, Clone, Default)]
 pub struct TMesh<T> {
@@ -82,7 +82,7 @@ impl<T> TMesh<T> {
     }
 }
 
-impl<T: Num + Copy + Bounded + FromPrimitive + Signed + PartialOrd> TMesh<T> {
+impl<T: Numeric> TMesh<T> {
     /// Infers the local knot vectors for a specific control point.
     /// Returns (s_vector, t_vector).
     pub fn infer_local_knots(&self, v_id: VertID) -> ([T; 5], [T; 5]) {
@@ -458,10 +458,7 @@ impl<T: Num + Copy + Bounded + FromPrimitive + Signed + PartialOrd> TMesh<T> {
 /// # Arguments
 /// * `u` - The parameter value to evaluate.
 /// * `knots` - A local knot vector of length 5: [u_i, u_{i+1}, u_{i+2}, u_{i+3}, u_{i+4}].
-pub fn cubic_basis_function<T: Num + Zero + One + Copy + PartialOrd + NumAssign + FromPrimitive>(
-    u: T,
-    knots: &[T; 5],
-) -> T {
+pub fn cubic_basis_function<T: Numeric>(u: T, knots: &[T; 5]) -> T {
     // 1. Boundary check for the support [u_i, u_{i+4}]
     // Basis functions are non-zero only within their knot spans.
     if u < knots[0] || u > knots[4] {
@@ -512,10 +509,7 @@ pub fn cubic_basis_function<T: Num + Zero + One + Copy + PartialOrd + NumAssign 
     n[0]
 }
 
-impl<
-    T: Num + Zero + One + Copy + PartialOrd + NumAssign + std::fmt::Debug + num_traits::FromPrimitive,
-> TMesh<T>
-{
+impl<T: Numeric + 'static> TMesh<T> {
     pub fn subs(&self, (s, t): (T, T), knot_cache: &[LocalKnots<T>]) -> Option<Point3<T>> {
         let mut numerator = Vector4::new(T::zero(), T::zero(), T::zero(), T::zero());
         let mut denominator = T::zero();

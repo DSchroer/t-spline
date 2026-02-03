@@ -6,9 +6,10 @@ use crate::tmesh::ids::{EdgeID, FaceID, VertID};
 use crate::tmesh::segment::ParamPoint;
 use crate::tmesh::*;
 use crate::*;
-use num_traits::{One, Zero};
+use alloc::vec::Vec;
+use nalgebra::Vector4;
 
-impl<T: Num + Zero + One + Copy> TSpline<T> {
+impl<T: Numeric> TSpline<T> {
     pub fn new_unit_square() -> TSpline<T> {
         let mut mesh = TMesh {
             vertices: Vec::with_capacity(4),

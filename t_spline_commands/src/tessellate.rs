@@ -1,19 +1,14 @@
-use num_traits::{Bounded, FromPrimitive, Num, NumAssign, Signed};
 use rayon::prelude::*;
-use std::fmt::Debug;
 use t_spline::tmesh::bounds::Bounds;
 use t_spline::tmesh::ids::VertID;
 use t_spline::tmesh::{LocalKnots, TMesh};
-use t_spline::{Command, Point3};
+use t_spline::{Command, Numeric, Point3};
 
 pub struct Tessellate {
     pub resolution: usize,
 }
 
-impl<
-    T: Num + Copy + PartialOrd + Signed + NumAssign + Debug + Send + Sync + Bounded + FromPrimitive,
-> Command<T> for Tessellate
-{
+impl<T: Numeric + Send + Sync + 'static> Command<T> for Tessellate {
     type Result = Vec<Point3<T>>;
 
     fn execute(&mut self, mesh: &TMesh<T>) -> Self::Result {
@@ -30,9 +25,7 @@ impl<
     }
 }
 
-fn knot_vectors<T: Num + FromPrimitive + Copy + Bounded + Signed + PartialOrd + Send + Sync>(
-    mesh: &TMesh<T>,
-) -> Vec<LocalKnots<T>> {
+fn knot_vectors<T: Numeric + Send + Sync>(mesh: &TMesh<T>) -> Vec<LocalKnots<T>> {
     (0..mesh.vertices.len())
         .into_par_iter()
         .map(|v| mesh.infer_local_knots(VertID(v)))
@@ -90,12 +83,9 @@ mod tests {
         // Check components with epsilon tolerance
         let expected = Point3::new(0.5, 0.5, 0.0);
         let diff = center - expected;
-        assert!(
-            diff.x.abs() < 1e-9 && diff.y.abs() < 1e-9 && diff.z.abs() < 1e-9,
-            "Center mismatch: expected {:?}, got {:?}",
-            expected,
-            center
-        );
+        assert_eq!(0., diff.x);
+        assert_eq!(0., diff.y);
+        assert_eq!(0., diff.z);
     }
 
     #[test]

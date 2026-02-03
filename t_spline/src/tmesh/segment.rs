@@ -1,5 +1,5 @@
-use num_traits::{Num, NumCast, Signed, Zero};
-use std::ops::Sub;
+use crate::Numeric;
+use core::ops::Sub;
 
 #[derive(Debug, Copy, Clone)]
 pub struct ParamPoint<T> {
@@ -9,7 +9,7 @@ pub struct ParamPoint<T> {
     pub t: T,
 }
 
-impl<T: Num + Zero + NumCast + Signed + Copy + PartialOrd> ParamPoint<T> {
+impl<T: Numeric> ParamPoint<T> {
     fn cross(&self, rhs: &Self) -> T {
         self.s * rhs.t - self.t * rhs.s
     }
@@ -45,7 +45,7 @@ impl<T: Sub<Output = T>> Sub for ParamPoint<T> {
     }
 }
 
-impl<T: Num + Zero + NumCast + Signed + Copy + PartialOrd> Segment<T> {
+impl<T: Numeric> Segment<T> {
     /// Determine if two segments intersect.
     pub fn intersects(&self, other: &Segment<T>) -> bool {
         let oa = ParamPoint::orient(other.start, other.end, self.start);
@@ -60,28 +60,28 @@ impl<T: Num + Zero + NumCast + Signed + Copy + PartialOrd> Segment<T> {
 
         // Special Cases: segments are collinear or touching at an endpoint.
         // Check if self.start lies on the 'other' segment.
-        if oa.abs() < T::from(1e-9).unwrap()
+        if oa.abs() < T::from_f32(1e-9).unwrap()
             && ParamPoint::on_segment(self.start, other.start, other.end)
         {
             return true;
         }
 
         // Check if self.end lies on the 'other' segment.
-        if ob.abs() < T::from(1e-9).unwrap()
+        if ob.abs() < T::from_f32(1e-9).unwrap()
             && ParamPoint::on_segment(self.end, other.start, other.end)
         {
             return true;
         }
 
         // Check if other.start lies on the 'self' segment.
-        if oc.abs() < T::from(1e-9).unwrap()
+        if oc.abs() < T::from_f32(1e-9).unwrap()
             && ParamPoint::on_segment(other.start, self.start, self.end)
         {
             return true;
         }
 
         // Check if other.end lies on the 'self' segment.
-        if od.abs() < T::from(1e-9).unwrap()
+        if od.abs() < T::from_f32(1e-9).unwrap()
             && ParamPoint::on_segment(other.end, self.start, self.end)
         {
             return true;

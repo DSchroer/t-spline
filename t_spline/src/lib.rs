@@ -1,14 +1,17 @@
+#![cfg_attr(not(test), no_std)]
+
+extern crate alloc;
+
 mod commands;
+mod numeric;
 mod shapes;
 pub mod tmesh;
 
 pub use crate::commands::{Command, CommandMut};
-use crate::tmesh::TMesh;
-pub use cgmath::Point3;
-pub use cgmath::Vector4;
-use num_traits::{Bounded, FromPrimitive, Num};
+pub use crate::numeric::Numeric;
+pub use nalgebra::{Point3, Vector4};
 
-pub trait Numeric: Num + Bounded + FromPrimitive + Copy + PartialOrd {}
+use crate::tmesh::TMesh;
 
 #[derive(Debug, Default, Clone)]
 pub struct TSpline<T> {
