@@ -1,4 +1,3 @@
-use num_traits::Float;
 use crate::tmesh::control_point::ControlPoint;
 use crate::tmesh::direction::Direction;
 use crate::tmesh::face::Face;
@@ -7,8 +6,10 @@ use crate::tmesh::ids::{EdgeID, FaceID, VertID};
 use crate::tmesh::segment::ParamPoint;
 use crate::tmesh::*;
 use crate::*;
+use num_traits::real::Real;
+use num_traits::{One, Zero};
 
-impl<T: Float> TSpline<T>  {
+impl<T: Num + Zero + One + Copy> TSpline<T> {
     pub fn new_unit_square() -> TSpline<T> {
         let mut mesh = TMesh {
             vertices: Vec::with_capacity(4),
@@ -17,7 +18,12 @@ impl<T: Float> TSpline<T>  {
         };
 
         // 1. Define 4 Corner Vertices
-        let coords = [(T::zero(), T::zero()), (T::one(), T::zero()), (T::one(), T::one()), (T::zero(), T::one())];
+        let coords = [
+            (T::zero(), T::zero()),
+            (T::one(), T::zero()),
+            (T::one(), T::one()),
+            (T::zero(), T::one()),
+        ];
         for (i, (s, t)) in coords.iter().enumerate() {
             mesh.vertices.push(ControlPoint {
                 geometry: Vector4::new(*s, *t, T::zero(), T::one()),

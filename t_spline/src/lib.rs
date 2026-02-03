@@ -2,11 +2,13 @@ mod commands;
 mod shapes;
 pub mod tmesh;
 
-pub use cgmath::Point3;
-pub use cgmath::Vector4;
-
 pub use crate::commands::{Command, CommandMut};
 use crate::tmesh::TMesh;
+pub use cgmath::Point3;
+pub use cgmath::Vector4;
+use num_traits::{Bounded, FromPrimitive, Num};
+
+pub trait Numeric: Num + Bounded + FromPrimitive + Copy + PartialOrd {}
 
 #[derive(Debug, Default, Clone)]
 pub struct TSpline<T> {

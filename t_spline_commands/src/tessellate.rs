@@ -1,4 +1,4 @@
-use num_traits::{Float, NumAssign};
+use num_traits::{Bounded, FromPrimitive, Num, NumAssign, NumCast, Signed};
 use rayon::prelude::*;
 use std::fmt::Debug;
 use t_spline::tmesh::bounds::Bounds;
@@ -10,7 +10,9 @@ pub struct Tessellate {
     pub resolution: usize,
 }
 
-impl<T: Float + NumAssign + Debug + Send + Sync> Command<T> for Tessellate {
+impl<T: Num + Copy + PartialOrd + Signed + NumAssign + Debug + Send + Sync + Bounded + FromPrimitive>
+    Command<T> for Tessellate
+{
     type Result = Vec<Point3<T>>;
 
     fn execute(&mut self, mesh: &TMesh<T>) -> Self::Result {
@@ -27,7 +29,9 @@ impl<T: Float + NumAssign + Debug + Send + Sync> Command<T> for Tessellate {
     }
 }
 
-fn knot_vectors<T: Float + Send + Sync>(mesh: &TMesh<T>) -> Vec<LocalKnots<T>> {
+fn knot_vectors<T: Num + FromPrimitive + Copy + Bounded + Signed + PartialOrd + Send + Sync>(
+    mesh: &TMesh<T>,
+) -> Vec<LocalKnots<T>> {
     (0..mesh.vertices.len())
         .into_par_iter()
         .map(|v| mesh.infer_local_knots(VertID(v)))

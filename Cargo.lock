@@ -91,6 +91,7 @@ dependencies = [
  "az",
  "bytemuck",
  "half",
+ "num-traits",
  "typenum",
 ]
 
@@ -176,6 +177,7 @@ dependencies = [
 name = "t-spline-commands"
 version = "0.1.0"
 dependencies = [
+ "fixed",
  "num-traits",
  "rayon",
  "t-spline",

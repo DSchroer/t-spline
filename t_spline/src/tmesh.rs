@@ -12,7 +12,9 @@ use crate::tmesh::face::Face;
 use crate::tmesh::half_edge::HalfEdge;
 use crate::tmesh::ids::{EdgeID, FaceID, VertID};
 use cgmath::{Point3, Vector4};
-use num_traits::{Float, NumAssign};
+use num_traits::float::FloatCore;
+use num_traits::real::Real;
+use num_traits::{Bounded, FromPrimitive, Num, NumAssign, NumCast, One, Signed, Zero};
 use std::fmt::Debug;
 
 #[derive(Debug, Clone, Default)]
@@ -82,7 +84,7 @@ impl<T> TMesh<T> {
     }
 }
 
-impl<T: Float> TMesh<T> {
+impl<T: Num + Copy + Bounded + FromPrimitive + Signed + PartialOrd> TMesh<T> {
     /// Infers the local knot vectors for a specific control point.
     /// Returns (s_vector, t_vector).
     pub fn infer_local_knots(&self, v_id: VertID) -> ([T; 5], [T; 5]) {
@@ -223,11 +225,19 @@ impl<T: Float> TMesh<T> {
 
                     // Check if edge spans across the ray constant
                     // Careful with floating point epsilon
-                    let min_c = e_p1_const.min(e_p2_const);
-                    let max_c = e_p1_const.max(e_p2_const);
+                    let min_c = if e_p1_const <= e_p2_const {
+                        e_p1_const
+                    } else {
+                        e_p2_const
+                    };
+                    let max_c = if e_p1_const >= e_p2_const {
+                        e_p1_const
+                    } else {
+                        e_p2_const
+                    };
 
-                    if ray_const >= min_c - T::from(1e-9).unwrap()
-                        && ray_const <= max_c + T::from(1e-9).unwrap()
+                    if ray_const >= min_c - T::from_f32(1e-9).unwrap()
+                        && ray_const <= max_c + T::from_f32(1e-9).unwrap()
                     {
                         // Edge crosses or touches the ray line.
                         // But we must exclude the start vertex itself (which is p1 or p2)
@@ -238,7 +248,7 @@ impl<T: Float> TMesh<T> {
                         // Var = p1.v + t * (p2.v - p1.v)
 
                         let intersect_var =
-                            if (e_p2_const - e_p1_const).abs() < T::from(1e-12).unwrap() {
+                            if (e_p2_const - e_p1_const).abs() < T::from_f32(1e-12).unwrap() {
                                 // Edge is parallel to ray? Then it must be collinear.
                                 // If collinear, we pick the point closest to ray_start but > ray_start
                                 // This case usually handled by find_next_vertex_in_direction, but
@@ -252,8 +262,8 @@ impl<T: Float> TMesh<T> {
 
                         let dist = intersect_var - ray_start;
 
-                        if ((positive && dist > T::from(1e-6).unwrap())
-                            || (!positive && dist < T::from(-1e-6).unwrap()))
+                        if ((positive && dist > T::from_f32(1e-6).unwrap())
+                            || (!positive && dist < T::from_f32(-1e-6).unwrap()))
                             && dist.abs() < closest_dist
                         {
                             closest_dist = dist.abs();
@@ -301,13 +311,13 @@ impl<T: Float> TMesh<T> {
 
             // Check if the edge is collinear with the search axis
             let is_collinear = match axis {
-                Direction::S => (dest_v.uv.t - v.uv.t).abs() < T::from(1e-12).unwrap(),
-                Direction::T => (dest_v.uv.s - v.uv.s).abs() < T::from(1e-12).unwrap(),
+                Direction::S => (dest_v.uv.t - v.uv.t).abs() < T::from_f32(1e-12).unwrap(),
+                Direction::T => (dest_v.uv.s - v.uv.s).abs() < T::from_f32(1e-12).unwrap(),
             };
 
             if is_collinear
-                && ((positive && delta > T::from(1e-12).unwrap())
-                    || (!positive && delta < -T::from(1e-12).unwrap()))
+                && ((positive && delta > T::from_f32(1e-12).unwrap())
+                    || (!positive && delta < -T::from_f32(1e-12).unwrap()))
             {
                 return Some(dest_id);
             }
@@ -450,7 +460,10 @@ impl<T: Float> TMesh<T> {
 /// # Arguments
 /// * `u` - The parameter value to evaluate.
 /// * `knots` - A local knot vector of length 5: [u_i, u_{i+1}, u_{i+2}, u_{i+3}, u_{i+4}].
-pub fn cubic_basis_function<T: Float + NumAssign>(u: T, knots: &[T; 5]) -> T {
+pub fn cubic_basis_function<T: Num + Zero + One + Copy + PartialOrd + NumAssign + FromPrimitive>(
+    u: T,
+    knots: &[T; 5],
+) -> T {
     // 1. Boundary check for the support [u_i, u_{i+4}]
     // Basis functions are non-zero only within their knot spans.
     if u < knots[0] || u > knots[4] {
@@ -460,7 +473,7 @@ pub fn cubic_basis_function<T: Float + NumAssign>(u: T, knots: &[T; 5]) -> T {
     // Clamp u to be strictly inside the support for the half-open interval logic,
     // effectively taking the limit from the left at the boundary.
     let u_eval = if u >= knots[4] {
-        knots[4] - T::epsilon()
+        knots[4] - T::from_f32(1e-9).unwrap()
     } else {
         u
     };
@@ -501,7 +514,9 @@ pub fn cubic_basis_function<T: Float + NumAssign>(u: T, knots: &[T; 5]) -> T {
     n[0]
 }
 
-impl<T: Float + NumAssign + Debug> TMesh<T> {
+impl<T: Num + Zero + One + Copy + PartialOrd + NumAssign + std::fmt::Debug + num_traits::FromPrimitive>
+    TMesh<T>
+{
     pub fn subs(&self, (s, t): (T, T), knot_cache: &[LocalKnots<T>]) -> Option<Point3<T>> {
         let mut numerator = Vector4::new(T::zero(), T::zero(), T::zero(), T::zero());
         let mut denominator = T::zero();
@@ -518,7 +533,13 @@ impl<T: Float + NumAssign + Debug> TMesh<T> {
             let basis_t = cubic_basis_function(t, t_knots);
             let basis = basis_s * basis_t * vert.geometry.w;
 
-            numerator += vert.geometry * basis;
+            let mapped = vert.geometry.map(|g| g * basis);
+
+            numerator.x += mapped.x;
+            numerator.y += mapped.y;
+            numerator.z += mapped.z;
+            numerator.w += mapped.w;
+
             denominator += basis;
         }
 
@@ -526,7 +547,7 @@ impl<T: Float + NumAssign + Debug> TMesh<T> {
             return None;
         }
 
-        let result_homo = numerator / denominator;
+        let result_homo = numerator.map(|f| f / denominator);
         Some(Point3::new(result_homo.x, result_homo.y, result_homo.z))
     }
 }

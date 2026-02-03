@@ -1,4 +1,5 @@
-use num_traits::Float;
+use num_traits::real::Real;
+use num_traits::{Num, NumCast, Signed, Zero};
 use std::ops::Sub;
 
 #[derive(Debug, Copy, Clone)]
@@ -9,7 +10,7 @@ pub struct ParamPoint<T> {
     pub t: T,
 }
 
-impl<T: Float> ParamPoint<T> {
+impl<T: Num + Zero + NumCast + Signed + Copy + PartialOrd> ParamPoint<T> {
     fn cross(&self, rhs: &Self) -> T {
         self.s * rhs.t - self.t * rhs.s
     }
@@ -19,10 +20,15 @@ impl<T: Float> ParamPoint<T> {
     }
 
     fn on_segment(p: ParamPoint<T>, a: ParamPoint<T>, b: ParamPoint<T>) -> bool {
-        p.s <= Float::max(a.s, b.s)
-            && p.s >= Float::min(a.s, b.s)
-            && p.t <= Float::max(a.t, b.t)
-            && p.t >= Float::min(a.t, b.t)
+        let s_max = if a.s >= b.s { a.s } else { b.s };
+        let s_min = if a.s <= b.s { a.s } else { b.s };
+        let t_max = if a.t >= b.t { a.t } else { b.t };
+        let t_min = if a.t <= b.t { a.t } else { b.t };
+
+        p.s <= s_max
+            && p.s >= s_min
+            && p.t <= t_max
+            && p.t >= t_min
     }
 }
 
@@ -32,7 +38,7 @@ pub struct Segment<T> {
     pub end: ParamPoint<T>,
 }
 
-impl<T: Float> Sub for ParamPoint<T> {
+impl<T: Sub<Output = T>> Sub for ParamPoint<T> {
     type Output = ParamPoint<T>;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -43,7 +49,7 @@ impl<T: Float> Sub for ParamPoint<T> {
     }
 }
 
-impl<T: Float> Segment<T> {
+impl<T: Num + Zero + NumCast + Signed + Copy + PartialOrd> Segment<T> {
     /// Determine if two segments intersect.
     pub fn intersects(&self, other: &Segment<T>) -> bool {
         let oa = ParamPoint::orient(other.start, other.end, self.start);

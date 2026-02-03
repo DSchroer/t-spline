@@ -1,23 +1,17 @@
+use fixed::types::I10F22;
 use std::error::Error;
-use t_spline::tmesh::TMesh;
 use t_spline::{Command, TSpline};
 use t_spline_commands::tessellate::Tessellate;
 use t_spline_io::obj_writer::ObjWriter;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut spline = TSpline::new_t_junction();
-
-    spline.apply_mut(&mut |m: &mut TMesh<f64>| {
-        let j = m.vertices.iter_mut().find(|v| v.is_t_junction).unwrap();
-
-        j.geometry.z = 0.5;
-    });
-
+    let spline: TSpline<I10F22> = TSpline::new_unit_square();
     let points = Tessellate { resolution: 100 }.apply(&spline);
 
     ObjWriter::default()
-        .with_control_surface("Control", &spline.mesh())?
         .with_points("Surface", &points)?
+        .with_control_surface("Control", &spline.mesh())?
         .write(&mut std::io::stdout())?;
+
     Ok(())
 }
