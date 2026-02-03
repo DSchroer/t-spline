@@ -1,5 +1,5 @@
 use crate::tmesh::control_point::ControlPoint;
-use crate::tmesh::ids::FaceID;
+use crate::tmesh::ids::{EdgeID, FaceID};
 use crate::tmesh::TMesh;
 
 #[derive(Debug, Clone, Copy)]
@@ -51,24 +51,27 @@ impl Bounds {
 
     pub fn add_mesh(&mut self, mesh: &TMesh) {
         for v in &mesh.vertices {
-            self.s.0 = self.s.0.min(v.uv.s);
-            self.s.1 = self.s.1.max(v.uv.s);
-
-            self.t.0 = self.t.0.min(v.uv.t);
-            self.t.1 = self.t.1.max(v.uv.t);
+            self.add_vertex(v)
         }
     }
 
     pub fn add_face(&mut self, mesh: &TMesh, face: FaceID) {
         for e in mesh.face_edges(face) {
-            let v = mesh.vertex(mesh.edge(e).origin);
-
-            self.s.0 = self.s.0.min(v.uv.s);
-            self.s.1 = self.s.1.max(v.uv.s);
-
-            self.t.0 = self.t.0.min(v.uv.t);
-            self.t.1 = self.t.1.max(v.uv.t);
+            self.add_edge(mesh, e);
         }
+    }
+
+    pub fn add_edge(&mut self, mesh: &TMesh, edge: EdgeID) {
+        let v = mesh.vertex(mesh.edge(edge).origin);
+        self.add_vertex(v)
+    }
+
+    pub fn add_vertex(&mut self, point: &ControlPoint) {
+        self.s.0 = self.s.0.min(point.uv.s);
+        self.s.1 = self.s.1.max(point.uv.s);
+
+        self.t.0 = self.t.0.min(point.uv.t);
+        self.t.1 = self.t.1.max(point.uv.t);
     }
 
 }
