@@ -2,8 +2,8 @@ mod tessellate;
 
 pub use tessellate::*;
 
-use crate::models::TMesh;
 use crate::TSpline;
+use crate::tmesh::TMesh;
 
 /// Edit operation to perform on a spline mesh
 pub trait Command {

@@ -1,4 +1,4 @@
-use crate::models::ids::EdgeID;
+use crate::tmesh::ids::EdgeID;
 
 #[derive(Debug, Clone)]
 pub struct Face {

@@ -1,4 +1,4 @@
-use crate::models::TMesh;
+use crate::tmesh::TMesh;
 use cgmath::Point3;
 use std::fmt::Write;
 

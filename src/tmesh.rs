@@ -1,4 +1,15 @@
-use crate::models::*;
+pub mod control_point;
+pub mod direction;
+pub mod face;
+pub mod half_edge;
+pub mod ids;
+pub mod segment;
+
+use crate::tmesh::control_point::ControlPoint;
+use crate::tmesh::direction::Direction;
+use crate::tmesh::face::Face;
+use crate::tmesh::half_edge::HalfEdge;
+use crate::tmesh::ids::{EdgeID, FaceID, VertID};
 use rayon::prelude::*;
 
 #[derive(Debug, Clone, Default)]
@@ -468,6 +479,7 @@ impl TMesh {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::TSpline;
 
     #[test]
     fn it_finds_face_edges() {

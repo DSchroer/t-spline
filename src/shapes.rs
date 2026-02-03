@@ -1,4 +1,10 @@
-use crate::models::*;
+use crate::tmesh::control_point::ControlPoint;
+use crate::tmesh::direction::Direction;
+use crate::tmesh::face::Face;
+use crate::tmesh::half_edge::HalfEdge;
+use crate::tmesh::ids::{EdgeID, FaceID, VertID};
+use crate::tmesh::segment::ParamPoint;
+use crate::tmesh::*;
 use crate::*;
 
 impl TSpline {

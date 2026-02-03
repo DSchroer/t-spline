@@ -1,5 +1,5 @@
-use crate::models::ParamPoint;
-use crate::models::ids::EdgeID;
+use crate::tmesh::ids::EdgeID;
+use crate::tmesh::segment::ParamPoint;
 use cgmath::Vector4;
 
 #[derive(Debug, Clone)]

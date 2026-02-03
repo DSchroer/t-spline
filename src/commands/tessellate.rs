@@ -1,6 +1,6 @@
 use crate::commands::Command;
-use crate::models::Bounds;
-use crate::models::{LocalKnots, TMesh};
+use crate::tmesh::Bounds;
+use crate::tmesh::{LocalKnots, TMesh};
 use cgmath::Point3;
 use cgmath::Vector4;
 use rayon::prelude::*;
@@ -134,24 +134,36 @@ fn subs(mesh: &TMesh, s: f64, t: f64, knot_cache: &[LocalKnots]) -> Option<Point
 
 #[cfg(test)]
 mod tests {
-    use crate::TSpline;
     use super::*;
+    use crate::TSpline;
 
     #[test]
     pub fn it_can_evaluate_points_on_square() {
         let square = TSpline::new_unit_square();
         let knots = square.mesh().knot_vectors();
 
-        assert_eq!(Some(Point3::new(0., 0., 0.)), subs(square.mesh(), 0.0, 0.0, &knots));
-        assert_eq!(Some(Point3::new(1., 0., 0.)),  subs(square.mesh(), 1.0, 0.0, &knots));
-        assert_eq!(Some(Point3::new(0., 1., 0.)),  subs(square.mesh(), 0.0, 1.0, &knots));
-        assert_eq!(Some(Point3::new(1., 1., 0.)),  subs(square.mesh(), 1.0, 1.0, &knots));
+        assert_eq!(
+            Some(Point3::new(0., 0., 0.)),
+            subs(square.mesh(), 0.0, 0.0, &knots)
+        );
+        assert_eq!(
+            Some(Point3::new(1., 0., 0.)),
+            subs(square.mesh(), 1.0, 0.0, &knots)
+        );
+        assert_eq!(
+            Some(Point3::new(0., 1., 0.)),
+            subs(square.mesh(), 0.0, 1.0, &knots)
+        );
+        assert_eq!(
+            Some(Point3::new(1., 1., 0.)),
+            subs(square.mesh(), 1.0, 1.0, &knots)
+        );
     }
 
     #[test]
     pub fn it_can_tessellate_a_square() {
         let square = TSpline::new_unit_square();
-        let points = square.apply(&mut Tessellate{ resolution: 2 });
+        let points = square.apply(&mut Tessellate { resolution: 2 });
 
         assert_eq!(4, points.len());
 
@@ -165,7 +177,7 @@ mod tests {
     pub fn it_can_evaluate_center() {
         let square = TSpline::new_unit_square();
         let knots = square.mesh().knot_vectors();
-        let center =  subs(square.mesh(), 0.5, 0.5, &knots).unwrap();
+        let center = subs(square.mesh(), 0.5, 0.5, &knots).unwrap();
 
         // Check components with epsilon tolerance
         let expected = Point3::new(0.5, 0.5, 0.0);
@@ -200,7 +212,7 @@ mod tests {
         let knots = t_mesh.mesh().knot_vectors();
 
         // Just verify it doesn't panic and returns a point
-        let p =  subs(t_mesh.mesh(), 0.0, 0.0, &knots).unwrap();
+        let p = subs(t_mesh.mesh(), 0.0, 0.0, &knots).unwrap();
         assert!((p.z - 0.0).abs() < 1e-9);
     }
 }

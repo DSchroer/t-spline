@@ -1,5 +1,5 @@
-use crate::models::direction::Direction;
-use crate::models::ids::{EdgeID, FaceID, VertID};
+use crate::tmesh::direction::Direction;
+use crate::tmesh::ids::{EdgeID, FaceID, VertID};
 
 #[derive(Debug, Clone)]
 pub struct HalfEdge {
