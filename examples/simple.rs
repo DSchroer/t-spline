@@ -1,11 +1,11 @@
 use std::error::Error;
 use t_spline::export::PlyWriter;
 use t_spline::models::TSpline;
-use t_spline::commands::Tessellate;
+use t_spline::commands::{Command, Tessellate};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let spline = TSpline::new_simple();
-    let points = spline.command(&mut Tessellate{ resolution: 100 });
+    let points = Tessellate{ resolution: 100}.apply(&spline);
 
     PlyWriter::default()
         .with_point(&points)?

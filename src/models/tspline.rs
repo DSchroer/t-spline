@@ -1,6 +1,5 @@
 use crate::commands::{Command, CommandMut};
 use crate::models::tmesh::TMesh;
-use thiserror::Error;
 
 #[derive(Debug, Default, Clone)]
 pub struct TSpline {
@@ -30,7 +29,7 @@ impl TSpline {
     /// ```
     /// # use t_spline::models::*;
     /// let mut spline = TSpline::new_unit_square();
-    /// spline.command_mut(&mut |m: &mut TMesh| m.vertices[0].geometry.z = 1.0);
+    /// spline.apply_mut(&mut |m: &mut TMesh| m.vertices[0].geometry.z = 1.0);
     /// ```
     ///
     /// Dynamic dispatch modifications are also possible:
@@ -39,11 +38,11 @@ impl TSpline {
     /// # use t_spline::models::*;
     /// let mut spline = TSpline::new_unit_square();
     /// let mut dynOp: Box<dyn CommandMut<Result=()>> = Box::new(|m: &mut TMesh|{});
-    /// spline.command_mut(dynOp.as_mut());
+    /// spline.apply_mut(dynOp.as_mut());
     /// ```
     ///
     /// Complex operations should implement [Command].
-    pub fn command_mut<T: CommandMut + ?Sized>(&mut self, op: &mut T) -> T::Result {
+    pub fn apply_mut<T: CommandMut + ?Sized>(&mut self, op: &mut T) -> T::Result {
         op.execute(&mut self.mesh)
     }
 
@@ -53,7 +52,7 @@ impl TSpline {
     /// ```
     /// # use t_spline::models::*;
     /// let mut spline = TSpline::new_unit_square();
-    /// spline.command(&mut |m: &TMesh| {});
+    /// spline.apply(&mut |m: &TMesh| {});
     /// ```
     ///
     /// Dynamic dispatch modifications are also possible:
@@ -62,11 +61,11 @@ impl TSpline {
     /// # use t_spline::models::*;
     /// let mut spline = TSpline::new_unit_square();
     /// let mut dynOp: Box<dyn Command<Result=()>> = Box::new(|m: &TMesh|{});
-    /// spline.command(dynOp.as_mut());
+    /// spline.apply(dynOp.as_mut());
     /// ```
     ///
     /// Complex operations should implement [Command].
-    pub fn command<T: Command + ?Sized>(&self, op: &mut T) -> T::Result {
+    pub fn apply<T: Command + ?Sized>(&self, op: &mut T) -> T::Result {
         op.execute(&self.mesh)
     }
 

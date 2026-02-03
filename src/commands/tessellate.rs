@@ -39,6 +39,7 @@ impl Command for Tessellate {
 
                 subs(mesh, s, t, &knot_cache)
             })
+            .filter_map(|p| p)
             .collect()
     }
 }
@@ -95,7 +96,7 @@ pub fn cubic_basis_function(u: f64, knots: &[f64; 5]) -> f64 {
     n[0]
 }
 
-fn subs(mesh: &TMesh, s: f64, t: f64, knot_cache: &[LocalKnots]) -> Point3<f64> {
+fn subs(mesh: &TMesh, s: f64, t: f64, knot_cache: &[LocalKnots]) -> Option<Point3<f64>> {
     let mut numerator = Vector4::new(0.0, 0.0, 0.0, 0.0);
     let mut denominator: f64 = 0.0;
 
@@ -124,11 +125,11 @@ fn subs(mesh: &TMesh, s: f64, t: f64, knot_cache: &[LocalKnots]) -> Point3<f64> 
 
     if denominator.abs() < 1e-9 {
         // Handle undefined regions or holes
-        return Point3::new(0.0, 0.0, 0.0);
+        return None;
     }
 
     let result_homo = numerator / denominator;
-    Point3::new(result_homo.x, result_homo.y, result_homo.z)
+    Some(Point3::new(result_homo.x, result_homo.y, result_homo.z))
 }
 
 #[cfg(test)]
@@ -141,16 +142,16 @@ mod tests {
         let square = TSpline::new_unit_square();
         let knots = square.mesh().knot_vectors();
 
-        assert_eq!(Point3::new(0., 0., 0.), subs(square.mesh(), 0.0, 0.0, &knots));
-        assert_eq!(Point3::new(1., 0., 0.),  subs(square.mesh(), 1.0, 0.0, &knots));
-        assert_eq!(Point3::new(0., 1., 0.),  subs(square.mesh(), 0.0, 1.0, &knots));
-        assert_eq!(Point3::new(1., 1., 0.),  subs(square.mesh(), 1.0, 1.0, &knots));
+        assert_eq!(Some(Point3::new(0., 0., 0.)), subs(square.mesh(), 0.0, 0.0, &knots));
+        assert_eq!(Some(Point3::new(1., 0., 0.)),  subs(square.mesh(), 1.0, 0.0, &knots));
+        assert_eq!(Some(Point3::new(0., 1., 0.)),  subs(square.mesh(), 0.0, 1.0, &knots));
+        assert_eq!(Some(Point3::new(1., 1., 0.)),  subs(square.mesh(), 1.0, 1.0, &knots));
     }
 
     #[test]
     pub fn it_can_tessellate_a_square() {
         let square = TSpline::new_unit_square();
-        let points = square.command(&mut Tessellate{ resolution: 2 });
+        let points = square.apply(&mut Tessellate{ resolution: 2 });
 
         assert_eq!(4, points.len());
 
@@ -164,7 +165,7 @@ mod tests {
     pub fn it_can_evaluate_center() {
         let square = TSpline::new_unit_square();
         let knots = square.mesh().knot_vectors();
-        let center =  subs(square.mesh(), 0.5, 0.5, &knots);
+        let center =  subs(square.mesh(), 0.5, 0.5, &knots).unwrap();
 
         // Check components with epsilon tolerance
         let expected = Point3::new(0.5, 0.5, 0.0);
@@ -181,7 +182,7 @@ mod tests {
     pub fn it_can_tessellate_square() {
         let square = TSpline::new_unit_square();
         let resolution = 10;
-        let points = square.command(&mut Tessellate { resolution });
+        let points = square.apply(&mut Tessellate { resolution });
 
         assert_eq!(points.len(), resolution * resolution);
 
@@ -199,7 +200,7 @@ mod tests {
         let knots = t_mesh.mesh().knot_vectors();
 
         // Just verify it doesn't panic and returns a point
-        let p =  subs(t_mesh.mesh(), 0.0, 0.0, &knots);
+        let p =  subs(t_mesh.mesh(), 0.0, 0.0, &knots).unwrap();
         assert!((p.z - 0.0).abs() < 1e-9);
     }
 }
