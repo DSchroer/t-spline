@@ -25,10 +25,7 @@ impl<T: Num + Zero + NumCast + Signed + Copy + PartialOrd> ParamPoint<T> {
         let t_max = if a.t >= b.t { a.t } else { b.t };
         let t_min = if a.t <= b.t { a.t } else { b.t };
 
-        p.s <= s_max
-            && p.s >= s_min
-            && p.t <= t_max
-            && p.t >= t_min
+        p.s <= s_max && p.s >= s_min && p.t <= t_max && p.t >= t_min
     }
 }
 

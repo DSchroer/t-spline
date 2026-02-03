@@ -73,10 +73,26 @@ impl<T: Num + Copy + PartialOrd + FromPrimitive> Bounds<T> {
     }
 
     pub fn add_vertex(&mut self, point: &ControlPoint<T>) {
-        self.s.0 = if self.s.0 <= point.uv.s { self.s.0} else { point.uv.s };
-        self.s.1 = if self.s.1 >= point.uv.s { self.s.1} else { point.uv.s };
+        self.s.0 = if self.s.0 <= point.uv.s {
+            self.s.0
+        } else {
+            point.uv.s
+        };
+        self.s.1 = if self.s.1 >= point.uv.s {
+            self.s.1
+        } else {
+            point.uv.s
+        };
 
-        self.t.0 = if self.t.0 <= point.uv.t { self.t.0} else { point.uv.t };
-        self.t.1 = if self.t.1 >= point.uv.t { self.t.1} else { point.uv.t };
+        self.t.0 = if self.t.0 <= point.uv.t {
+            self.t.0
+        } else {
+            point.uv.t
+        };
+        self.t.1 = if self.t.1 >= point.uv.t {
+            self.t.1
+        } else {
+            point.uv.t
+        };
     }
 }

@@ -10,8 +10,9 @@ pub struct Tessellate {
     pub resolution: usize,
 }
 
-impl<T: Num + Copy + PartialOrd + Signed + NumAssign + Debug + Send + Sync + Bounded + FromPrimitive>
-    Command<T> for Tessellate
+impl<
+    T: Num + Copy + PartialOrd + Signed + NumAssign + Debug + Send + Sync + Bounded + FromPrimitive,
+> Command<T> for Tessellate
 {
     type Result = Vec<Point3<T>>;
 

@@ -514,8 +514,9 @@ pub fn cubic_basis_function<T: Num + Zero + One + Copy + PartialOrd + NumAssign 
     n[0]
 }
 
-impl<T: Num + Zero + One + Copy + PartialOrd + NumAssign + std::fmt::Debug + num_traits::FromPrimitive>
-    TMesh<T>
+impl<
+    T: Num + Zero + One + Copy + PartialOrd + NumAssign + std::fmt::Debug + num_traits::FromPrimitive,
+> TMesh<T>
 {
     pub fn subs(&self, (s, t): (T, T), knot_cache: &[LocalKnots<T>]) -> Option<Point3<T>> {
         let mut numerator = Vector4::new(T::zero(), T::zero(), T::zero(), T::zero());
