@@ -92,32 +92,32 @@ impl TMesh {
     /// Infers the local knot vectors for a specific control point.
     /// Returns (s_vector, t_vector).
     pub fn infer_local_knots(&self, v_id: VertID) -> ([f64; 5], [f64; 5]) {
-        let v = &self.vertices[v_id.0];
-        let (s2, t2) = (v.uv.s, v.uv.t);
-
-        // Trace two knots in each of the four cardinal directions
-        let s_pos = self.trace_knots(v_id, Direction::S, true); // s3, s4
-        let s_neg = self.trace_knots(v_id, Direction::S, false); // s1, s0
-        let t_pos = self.trace_knots(v_id, Direction::T, true); // t3, t4
-        let t_neg = self.trace_knots(v_id, Direction::T, false); // t1, t0
-
-        let mut s_knots = [s_neg[1], s_neg[0], s2, s_pos[0], s_pos[1]];
-        let mut t_knots = [t_neg[1], t_neg[0], t2, t_pos[0], t_pos[1]];
-
-        // Apply boundary shifts to ensure open knot vectors (multiplicity 4 at boundaries)
-        if s_neg[0] == s2 && s_neg[1] == s2 {
-            s_knots = [s2, s2, s2, s2, s_pos[0]];
-        } else if s_pos[0] == s2 && s_pos[1] == s2 {
-            s_knots = [s_neg[1], s2, s2, s2, s2];
-        }
-
-        if t_neg[0] == t2 && t_neg[1] == t2 {
-            t_knots = [t2, t2, t2, t2, t_pos[0]];
-        } else if t_pos[0] == t2 && t_pos[1] == t2 {
-            t_knots = [t_neg[1], t2, t2, t2, t2];
-        }
+        let s_knots = self.trace_local_knots(v_id, Direction::S);
+        let t_knots = self.trace_local_knots(v_id, Direction::T);
 
         (s_knots, t_knots)
+    }
+
+    fn trace_local_knots(&self, v_id: VertID, direction: Direction) -> [f64; 5] {
+        let v = self.vertex(v_id);
+        let c = match direction {
+            Direction::S => v.uv.s,
+            Direction::T => v.uv.t
+        };
+
+        // Trace two knots in each of the four cardinal directions
+        let pos = self.trace_knots(v_id, direction, true); // s3, s4
+        let neg = self.trace_knots(v_id, direction, false); // s1, s0
+        let mut knots = [neg[1], neg[0], c, pos[0], pos[1]];
+
+        // Apply boundary shifts to ensure open knot vectors (multiplicity 4 at boundaries)
+        if neg[0] == c && neg[1] == c {
+            knots = [c, c, c, c, pos[0]];
+        } else if pos[0] == c && pos[1] == c {
+            knots = [neg[0], c, c, c, c];
+        }
+
+        knots
     }
 
     /// Traces a ray from start_v in a direction to find the next two orthogonal knots.
