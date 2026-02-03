@@ -4,6 +4,7 @@ pub mod face;
 pub mod half_edge;
 pub mod ids;
 pub mod segment;
+pub mod bounds;
 
 use crate::tmesh::control_point::ControlPoint;
 use crate::tmesh::direction::Direction;
@@ -20,11 +21,6 @@ pub struct TMesh {
 }
 
 pub type LocalKnots = ([f64; 5], [f64; 5]);
-
-pub struct Bounds {
-    pub s: (f64, f64),
-    pub t: (f64, f64),
-}
 
 impl TMesh {
     pub fn vertex(&self, id: VertID) -> &ControlPoint {
@@ -82,34 +78,6 @@ impl TMesh {
             }
         }
         None
-    }
-
-    pub fn bounds(&self) -> Bounds {
-        let mut s_min = f64::MAX;
-        let mut s_max = f64::MIN;
-
-        let mut t_min = f64::MAX;
-        let mut t_max = f64::MIN;
-        for v in &self.vertices {
-            if v.uv.s < s_min {
-                s_min = v.uv.s;
-            }
-            if v.uv.s > s_max {
-                s_max = v.uv.s;
-            }
-
-            if v.uv.t < t_min {
-                t_min = v.uv.t;
-            }
-            if v.uv.t > t_max {
-                t_max = v.uv.t;
-            }
-        }
-
-        Bounds {
-            s: (s_min, s_max),
-            t: (t_min, t_max),
-        }
     }
 
     pub fn knot_vectors(&self) -> Vec<LocalKnots> {

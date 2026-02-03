@@ -1,9 +1,9 @@
 use crate::commands::Command;
-use crate::tmesh::Bounds;
 use crate::tmesh::{LocalKnots, TMesh};
 use cgmath::Point3;
 use cgmath::Vector4;
 use rayon::prelude::*;
+use crate::tmesh::bounds::Bounds;
 
 pub struct Tessellate {
     pub resolution: usize,
@@ -13,31 +13,15 @@ impl Command for Tessellate {
     type Result = Vec<Point3<f64>>;
 
     fn execute(&mut self, mesh: &TMesh) -> Self::Result {
-        let Bounds {
-            s: (s_min, s_max),
-            t: (t_min, t_max),
-        } = mesh.bounds();
+        let mut bounds = Bounds::default();
+        bounds.add_mesh(mesh);
+
         let knot_cache = mesh.knot_vectors();
 
-        let denom = (self.resolution - 1) as f64;
         (0..self.resolution * self.resolution)
             .into_par_iter()
             .map(|i| {
-                let u_i = i % self.resolution;
-                let v_i = i / self.resolution;
-                let s = if self.resolution > 1 {
-                    s_min + (u_i as f64 / denom) * (s_max - s_min)
-                } else {
-                    s_min
-                };
-
-                let t = if self.resolution > 1 {
-                    t_min + (v_i as f64 / denom) * (t_max - t_min)
-                } else {
-                    t_min
-                };
-
-                subs(mesh, s, t, &knot_cache)
+                subs(mesh, bounds.interpolate(i, self.resolution), &knot_cache)
             })
             .filter_map(|p| p)
             .collect()
@@ -96,7 +80,7 @@ pub fn cubic_basis_function(u: f64, knots: &[f64; 5]) -> f64 {
     n[0]
 }
 
-fn subs(mesh: &TMesh, s: f64, t: f64, knot_cache: &[LocalKnots]) -> Option<Point3<f64>> {
+fn subs(mesh: &TMesh, (s, t): (f64, f64), knot_cache: &[LocalKnots]) -> Option<Point3<f64>> {
     let mut numerator = Vector4::new(0.0, 0.0, 0.0, 0.0);
     let mut denominator: f64 = 0.0;
 
@@ -134,6 +118,7 @@ fn subs(mesh: &TMesh, s: f64, t: f64, knot_cache: &[LocalKnots]) -> Option<Point
 
 #[cfg(test)]
 mod tests {
+    use crate::tmesh::ids::FaceID;
     use super::*;
     use crate::TSpline;
 
@@ -144,19 +129,19 @@ mod tests {
 
         assert_eq!(
             Some(Point3::new(0., 0., 0.)),
-            subs(square.mesh(), 0.0, 0.0, &knots)
+            subs(square.mesh(), (0.0, 0.0), &knots)
         );
         assert_eq!(
             Some(Point3::new(1., 0., 0.)),
-            subs(square.mesh(), 1.0, 0.0, &knots)
+            subs(square.mesh(), (1.0, 0.0), &knots)
         );
         assert_eq!(
             Some(Point3::new(0., 1., 0.)),
-            subs(square.mesh(), 0.0, 1.0, &knots)
+            subs(square.mesh(), (0.0, 1.0), &knots)
         );
         assert_eq!(
             Some(Point3::new(1., 1., 0.)),
-            subs(square.mesh(), 1.0, 1.0, &knots)
+            subs(square.mesh(), (1.0, 1.0), &knots)
         );
     }
 
@@ -177,7 +162,7 @@ mod tests {
     pub fn it_can_evaluate_center() {
         let square = TSpline::new_unit_square();
         let knots = square.mesh().knot_vectors();
-        let center = subs(square.mesh(), 0.5, 0.5, &knots).unwrap();
+        let center = subs(square.mesh(), (0.5, 0.5), &knots).unwrap();
 
         // Check components with epsilon tolerance
         let expected = Point3::new(0.5, 0.5, 0.0);
@@ -208,11 +193,27 @@ mod tests {
 
     #[test]
     pub fn it_can_create_and_evaluate_t_junction_mesh() {
-        let t_mesh = TSpline::new_t_junction();
+        let mut t_mesh = TSpline::new_t_junction();
+
+        // lift center t-junction,
+        // spline should still be symmetrical
+        t_mesh.apply_mut(&mut |m: &mut TMesh| {
+            let j = m.vertices.iter_mut().find(|v| v.is_t_junction).unwrap();
+            j.geometry.z = 0.5;
+        });
+
         let knots = t_mesh.mesh().knot_vectors();
 
-        // Just verify it doesn't panic and returns a point
-        let p = subs(t_mesh.mesh(), 0.0, 0.0, &knots).unwrap();
-        assert!((p.z - 0.0).abs() < 1e-9);
+        let mut f1_bounds = Bounds::default();
+        f1_bounds.add_face(&t_mesh.mesh, FaceID(1));
+        assert_eq!(1., f1_bounds.area());
+        let f1_center = subs(t_mesh.mesh(), f1_bounds.center(), &knots).unwrap();
+
+        let mut f2_bounds = Bounds::default();
+        f2_bounds.add_face(&t_mesh.mesh, FaceID(2));
+        assert_eq!(1., f2_bounds.area());
+        let f2_center = subs(t_mesh.mesh(), f2_bounds.center(), &knots).unwrap();
+
+        assert_eq!(f1_center.z, f2_center.z, "t-spline is not symmetrical");
     }
 }

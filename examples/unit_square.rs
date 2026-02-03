@@ -1,7 +1,9 @@
 use std::error::Error;
 use t_spline::TSpline;
-use t_spline::commands::{Command, Tessellate};
+use t_spline::commands::{Command, SplitFace, Tessellate};
 use t_spline::export::{ObjWriter};
+use t_spline::tmesh::direction::Direction;
+use t_spline::tmesh::ids::FaceID;
 use t_spline::tmesh::TMesh;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -10,6 +12,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     spline.apply_mut(&mut |m: &mut TMesh| {
         m.vertices[0].geometry.z = 1.0;
         m.vertices[2].geometry.z = 0.5;
+    });
+
+    spline.apply_mut(&mut SplitFace{
+        direction: Direction::S,
+        face: FaceID(0)
+    });
+
+    spline.apply_mut(&mut SplitFace{
+        direction: Direction::T,
+        face: FaceID(0)
+    });
+
+    spline.apply_mut(&mut |m: &mut TMesh| {
+        let j = m.vertices.iter_mut().find(|v| v.is_t_junction).unwrap();
+
+        j.geometry.z = 1.0;
     });
 
     let points = Tessellate { resolution: 100 }.apply(&mut spline);
