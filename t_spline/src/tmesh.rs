@@ -6,24 +6,27 @@ pub mod ids;
 pub mod segment;
 pub mod bounds;
 
+use std::fmt::Debug;
+use std::ops::{AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
+use cgmath::{Point3, Vector4};
+use num_traits::{Float, NumAssign};
 use crate::tmesh::control_point::ControlPoint;
 use crate::tmesh::direction::Direction;
 use crate::tmesh::face::Face;
 use crate::tmesh::half_edge::HalfEdge;
 use crate::tmesh::ids::{EdgeID, FaceID, VertID};
-use crate::math::{Point, Vector};
 
 #[derive(Debug, Clone, Default)]
-pub struct TMesh {
-    pub vertices: Vec<ControlPoint>,
+pub struct TMesh<T> {
+    pub vertices: Vec<ControlPoint<T>>,
     pub edges: Vec<HalfEdge>,
     pub faces: Vec<Face>,
 }
 
-pub type LocalKnots = ([f64; 5], [f64; 5]);
+pub type LocalKnots<T> = ([T; 5], [T; 5]);
 
-impl TMesh {
-    pub fn vertex(&self, id: VertID) -> &ControlPoint {
+impl<T: Float> TMesh<T> {
+    pub fn vertex(&self, id: VertID) -> &ControlPoint<T> {
         &self.vertices[id.0]
     }
 
@@ -82,14 +85,14 @@ impl TMesh {
 
     /// Infers the local knot vectors for a specific control point.
     /// Returns (s_vector, t_vector).
-    pub fn infer_local_knots(&self, v_id: VertID) -> ([f64; 5], [f64; 5]) {
+    pub fn infer_local_knots(&self, v_id: VertID) -> ([T; 5], [T; 5]) {
         let s_knots = self.trace_local_knots(v_id, Direction::S);
         let t_knots = self.trace_local_knots(v_id, Direction::T);
 
         (s_knots, t_knots)
     }
 
-    fn trace_local_knots(&self, v_id: VertID, direction: Direction) -> [f64; 5] {
+    fn trace_local_knots(&self, v_id: VertID, direction: Direction) -> [T; 5] {
         let v = self.vertex(v_id);
         let c = match direction {
             Direction::S => v.uv.s,
@@ -112,8 +115,8 @@ impl TMesh {
     }
 
     /// Traces a ray from start_v in a direction to find the next two orthogonal knots.
-    fn trace_knots(&self, start_v: VertID, axis: Direction, positive: bool) -> [f64; 2] {
-        let mut results = [0.0; 2];
+    fn trace_knots(&self, start_v: VertID, axis: Direction, positive: bool) -> [T; 2] {
+        let mut results = [T::zero(); 2];
         let mut found_count = 0;
         let mut current_v = start_v;
 
@@ -173,12 +176,12 @@ impl TMesh {
         start_v: VertID,
         axis: Direction,
         positive: bool,
-    ) -> Option<f64> {
+    ) -> Option<T> {
         let v = &self.vertices[start_v.0];
         let start_edge = v.outgoing_edge?;
         let mut curr_spoke = start_edge;
 
-        let mut closest_dist = f64::MAX;
+        let mut closest_dist = T::max_value();
         let mut found_coord = None;
 
         // Iterate over all incident faces
@@ -223,7 +226,7 @@ impl TMesh {
                     let min_c = e_p1_const.min(e_p2_const);
                     let max_c = e_p1_const.max(e_p2_const);
 
-                    if ray_const >= min_c - 1e-9 && ray_const <= max_c + 1e-9 {
+                    if ray_const >= min_c - T::from(1e-9).unwrap() && ray_const <= max_c + T::from(1e-9).unwrap() {
                         // Edge crosses or touches the ray line.
                         // But we must exclude the start vertex itself (which is p1 or p2)
                         // Distance check handles this if we ensure dist > epsilon
@@ -232,7 +235,7 @@ impl TMesh {
                         // C = p1.c + t * (p2.c - p1.c) => t = (C - p1.c) / (p2.c - p1.c)
                         // Var = p1.v + t * (p2.v - p1.v)
 
-                        let intersect_var = if (e_p2_const - e_p1_const).abs() < 1e-12 {
+                        let intersect_var = if (e_p2_const - e_p1_const).abs() < T::from(1e-12).unwrap() {
                             // Edge is parallel to ray? Then it must be collinear.
                             // If collinear, we pick the point closest to ray_start but > ray_start
                             // This case usually handled by find_next_vertex_in_direction, but
@@ -246,7 +249,7 @@ impl TMesh {
 
                         let dist = intersect_var - ray_start;
 
-                        if ((positive && dist > 1e-6) || (!positive && dist < -1e-6))
+                        if ((positive && dist > T::from(1e-6).unwrap()) || (!positive && dist < T::from(-1e-6).unwrap()))
                             && dist.abs() < closest_dist {
                                 closest_dist = dist.abs();
                                 found_coord = Some(intersect_var);
@@ -293,11 +296,11 @@ impl TMesh {
 
             // Check if the edge is collinear with the search axis
             let is_collinear = match axis {
-                Direction::S => (dest_v.uv.t - v.uv.t).abs() < 1e-12,
-                Direction::T => (dest_v.uv.s - v.uv.s).abs() < 1e-12,
+                Direction::S => (dest_v.uv.t - v.uv.t).abs() < T::from(1e-12).unwrap(),
+                Direction::T => (dest_v.uv.s - v.uv.s).abs() < T::from(1e-12).unwrap(),
             };
 
-            if is_collinear && ((positive && delta > 1e-12) || (!positive && delta < -1e-12)) {
+            if is_collinear && ((positive && delta > T::from(1e-12).unwrap()) || (!positive && delta < -T::from(1e-12).unwrap())) {
                 return Some(dest_id);
             }
 
@@ -310,33 +313,7 @@ impl TMesh {
         None
     }
 
-    pub fn subs(&self, (s, t): (f64, f64), knot_cache: &[LocalKnots]) -> Option<Point> {
-        let mut numerator = Vector::new(0.0, 0.0, 0.0, 0.0);
-        let mut denominator: f64 = 0.0;
 
-        for (i, vert) in self.vertices.iter().enumerate() {
-            let (s_knots, t_knots) = &knot_cache[i];
-
-            // Quick AABB check in parameter space
-            if s < s_knots[0] || s > s_knots[4] || t < t_knots[0] || t > t_knots[4] {
-                continue;
-            }
-
-            let basis_s = cubic_basis_function(s, s_knots);
-            let basis_t = cubic_basis_function(t, t_knots);
-            let basis = basis_s * basis_t * vert.geometry.w;
-
-            numerator += vert.geometry * basis;
-            denominator += basis;
-        }
-
-        if denominator == 0. {
-            return None;
-        }
-
-        let result_homo = numerator / denominator;
-        Some(Point::new(result_homo.x, result_homo.y, result_homo.z))
-    }
 
     // /// Casts a ray in `direction` for `steps` topological units.
     // /// Returns the coordinate found.
@@ -467,24 +444,24 @@ impl TMesh {
 /// # Arguments
 /// * `u` - The parameter value to evaluate.
 /// * `knots` - A local knot vector of length 5: [u_i, u_{i+1}, u_{i+2}, u_{i+3}, u_{i+4}].
-pub fn cubic_basis_function(u: f64, knots: &[f64; 5]) -> f64 {
+pub fn cubic_basis_function<T: Float + AddAssign>(u: T, knots: &[T; 5]) -> T {
     // 1. Boundary check for the support [u_i, u_{i+4}]
     // Basis functions are non-zero only within their knot spans.
     if u < knots[0] || u > knots[4] {
-        return 0.0;
+        return T::zero();
     }
 
     // Clamp u to be strictly inside the support for the half-open interval logic,
     // effectively taking the limit from the left at the boundary.
-    let u_eval = if u >= knots[4] { knots[4] - 1e-14 } else { u };
+    let u_eval = if u >= knots[4] { knots[4] - T::epsilon() } else { u };
 
     // 2. Initialize the 0th degree basis (step functions)
     // There are 4 intervals defined by 5 knots.
-    let mut n = [0.0; 4];
+    let mut n = [T::zero(); 4];
     for i in 0..4 {
         // Standard half-open interval check [t_i, t_{i+1})
         if u_eval >= knots[i] && u_eval < knots[i + 1] {
-            n[i] = 1.0;
+            n[i] = T::one();
         }
     }
 
@@ -492,17 +469,17 @@ pub fn cubic_basis_function(u: f64, knots: &[f64; 5]) -> f64 {
     for p in 1..=3 {
         // In each degree layer, we calculate (4 - p) basis functions
         for i in 0..(4 - p) {
-            let mut val = 0.0;
+            let mut val = T::zero();
 
             // Left term: ((u - u_i) / (u_{i+p} - u_i)) * N_{i, p-1}(u)
             let den1 = knots[i + p] - knots[i];
-            if den1 != 0.0 {
+            if den1 != T::zero() {
                 val += ((u - knots[i]) / den1) * n[i];
             }
 
             // Right term: ((u_{i+p+1} - u) / (u_{i+p+1} - u_{i+1})) * N_{i+1, p-1}(u)
             let den2 = knots[i + p + 1] - knots[i + 1];
-            if den2 != 0.0 {
+            if den2 != T::zero() {
                 val += ((knots[i + p + 1] - u) / den2) * n[i + 1];
             }
 
@@ -512,6 +489,36 @@ pub fn cubic_basis_function(u: f64, knots: &[f64; 5]) -> f64 {
 
     // The result N_{i,3} is now at n
     n[0]
+}
+
+impl<T: Float + NumAssign + Debug> TMesh<T> {
+    pub fn subs(&self, (s, t): (T, T), knot_cache: &[LocalKnots<T>]) -> Option<Point3<T>> {
+        let mut numerator = Vector4::new(T::zero(), T::zero(), T::zero(), T::zero());
+        let mut denominator = T::zero();
+
+        for (i, vert) in self.vertices.iter().enumerate() {
+            let (s_knots, t_knots) = &knot_cache[i];
+
+            // Quick AABB check in parameter space
+            if s < s_knots[0] || s > s_knots[4] || t < t_knots[0] || t > t_knots[4] {
+                continue;
+            }
+
+            let basis_s = cubic_basis_function(s, s_knots);
+            let basis_t = cubic_basis_function(t, t_knots);
+            let basis = basis_s * basis_t * vert.geometry.w;
+
+            numerator += vert.geometry * basis;
+            denominator += basis;
+        }
+
+        if denominator == T::zero() {
+            return None;
+        }
+
+        let result_homo = numerator / denominator;
+        Some(Point3::new(result_homo.x, result_homo.y, result_homo.z))
+    }
 }
 
 #[cfg(test)]
@@ -536,7 +543,7 @@ mod tests {
         assert_eq!([0., 0., 0., 0., 1.], t_knots);
     }
 
-    pub fn unit_square_tmesh() -> TMesh {
+    pub fn unit_square_tmesh() -> TMesh<f64> {
         TSpline::new_unit_square().into_mesh()
     }
 }

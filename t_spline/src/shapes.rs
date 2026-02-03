@@ -7,8 +7,8 @@ use crate::tmesh::segment::ParamPoint;
 use crate::tmesh::*;
 use crate::*;
 
-impl TSpline {
-    pub fn new_unit_square() -> TSpline {
+impl TSpline<f64> {
+    pub fn new_unit_square() -> TSpline<f64> {
         let mut mesh = TMesh {
             vertices: Vec::with_capacity(4),
             edges: Vec::with_capacity(8),
@@ -76,7 +76,7 @@ impl TSpline {
     /// F0 (Left): (0,0)-(1,0)-(1,1)-(1,2)-(0,2) [Pentagon with T-junction at (1,1)]
     /// F1 (Bot-Right): (1,0)-(2,0)-(2,1)-(1,1)
     /// F2 (Top-Right): (1,1)-(2,1)-(2,2)-(1,2)
-    pub fn new_t_junction() -> TSpline {
+    pub fn new_t_junction() -> TSpline<f64> {
         let mut mesh = TMesh {
             vertices: Vec::with_capacity(8),
             edges: Vec::with_capacity(20),
@@ -172,7 +172,7 @@ impl TSpline {
         mesh.into()
     }
 
-    pub fn new_simple() -> TSpline {
+    pub fn new_simple() -> TSpline<f64> {
         let mut mesh = TMesh {
             vertices: Vec::with_capacity(8),
             edges: Vec::with_capacity(20),

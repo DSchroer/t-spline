@@ -1,38 +1,39 @@
 use std::ops::Sub;
+use num_traits::Float;
 
 #[derive(Debug, Copy, Clone)]
-pub struct ParamPoint {
+pub struct ParamPoint<T> {
     /// Horizontal UV coordinate
-    pub s: f64,
+    pub s: T,
     /// Vertical UV coordinate
-    pub t: f64,
+    pub t: T,
 }
 
-impl ParamPoint {
-    fn cross(&self, rhs: &Self) -> f64 {
+impl<T: Float> ParamPoint<T> {
+    fn cross(&self, rhs: &Self) -> T {
         self.s * rhs.t - self.t * rhs.s
     }
 
-    fn orient(a: ParamPoint, b: ParamPoint, c: ParamPoint) -> f64 {
+    fn orient(a: ParamPoint<T>, b: ParamPoint<T>, c: ParamPoint<T>) -> T {
         (b - a).cross(&(c - a))
     }
 
-    fn on_segment(p: ParamPoint, a: ParamPoint, b: ParamPoint) -> bool {
-        p.s <= f64::max(a.s, b.s)
-            && p.s >= f64::min(a.s, b.s)
-            && p.t <= f64::max(a.t, b.t)
-            && p.t >= f64::min(a.t, b.t)
+    fn on_segment(p: ParamPoint<T>, a: ParamPoint<T>, b: ParamPoint<T>) -> bool {
+        p.s <= Float::max(a.s, b.s)
+            && p.s >= Float::min(a.s, b.s)
+            && p.t <= Float::max(a.t, b.t)
+            && p.t >= Float::min(a.t, b.t)
     }
 }
 
 #[derive(Debug)]
-pub struct Segment {
-    pub start: ParamPoint,
-    pub end: ParamPoint,
+pub struct Segment<T> {
+    pub start: ParamPoint<T>,
+    pub end: ParamPoint<T>,
 }
 
-impl Sub for ParamPoint {
-    type Output = ParamPoint;
+impl<T: Float> Sub for ParamPoint<T> {
+    type Output = ParamPoint<T>;
 
     fn sub(self, rhs: Self) -> Self::Output {
         Self::Output {
@@ -42,37 +43,37 @@ impl Sub for ParamPoint {
     }
 }
 
-impl Segment {
+impl<T: Float> Segment<T> {
     /// Determine if two segments intersect.
-    pub fn intersects(&self, other: &Segment) -> bool {
+    pub fn intersects(&self, other: &Segment<T>) -> bool {
         let oa = ParamPoint::orient(other.start, other.end, self.start);
         let ob = ParamPoint::orient(other.start, other.end, self.end);
         let oc = ParamPoint::orient(self.start, self.end, other.start);
         let od = ParamPoint::orient(self.start, self.end, other.end);
 
         // General case: segments cross each other, not touching.
-        if oa * ob < 0.0 && oc * od < 0.0 {
+        if oa * ob < T::zero() && oc * od < T::zero() {
             return true;
         }
 
         // Special Cases: segments are collinear or touching at an endpoint.
         // Check if self.start lies on the 'other' segment.
-        if oa.abs() < 1e-9 && ParamPoint::on_segment(self.start, other.start, other.end) {
+        if oa.abs() < T::from(1e-9).unwrap() && ParamPoint::on_segment(self.start, other.start, other.end) {
             return true;
         }
 
         // Check if self.end lies on the 'other' segment.
-        if ob.abs() < 1e-9 && ParamPoint::on_segment(self.end, other.start, other.end) {
+        if ob.abs() < T::from(1e-9).unwrap() && ParamPoint::on_segment(self.end, other.start, other.end) {
             return true;
         }
 
         // Check if other.start lies on the 'self' segment.
-        if oc.abs() < 1e-9 && ParamPoint::on_segment(other.start, self.start, self.end) {
+        if oc.abs() < T::from(1e-9).unwrap() && ParamPoint::on_segment(other.start, self.start, self.end) {
             return true;
         }
 
         // Check if other.end lies on the 'self' segment.
-        if od.abs() < 1e-9 && ParamPoint::on_segment(other.end, self.start, self.end) {
+        if od.abs() < T::from(1e-9).unwrap() && ParamPoint::on_segment(other.end, self.start, self.end) {
             return true;
         }
 

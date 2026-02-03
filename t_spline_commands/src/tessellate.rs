@@ -1,22 +1,23 @@
-use t_spline::Command;
+use std::fmt::Debug;
+use num_traits::{Float, NumAssign};
+use t_spline::{Command, Point3};
 use t_spline::tmesh::{LocalKnots, TMesh};
 use rayon::prelude::*;
 use t_spline::tmesh::bounds::Bounds;
 use t_spline::tmesh::ids::VertID;
-use t_spline::math::Point;
 
 pub struct Tessellate {
     pub resolution: usize,
 }
 
-impl Command for Tessellate {
-    type Result = Vec<Point>;
+impl<T: Float + NumAssign + Debug + Send + Sync> Command<T> for Tessellate {
+    type Result = Vec<Point3<T>>;
 
-    fn execute(&mut self, mesh: &TMesh) -> Self::Result {
+    fn execute(&mut self, mesh: &TMesh<T>) -> Self::Result {
         let mut bounds = Bounds::default();
         bounds.add_mesh(mesh);
 
-        let knot_cache: Vec<LocalKnots> = knot_vectors(mesh);
+        let knot_cache: Vec<_> = knot_vectors(mesh);
 
         (0..self.resolution * self.resolution)
             .into_par_iter()
@@ -28,7 +29,7 @@ impl Command for Tessellate {
     }
 }
 
-fn knot_vectors(mesh: &TMesh) -> Vec<LocalKnots> {
+fn knot_vectors<T: Float + Send + Sync>(mesh: &TMesh<T>) -> Vec<LocalKnots<T>> {
     (0..mesh.vertices.len())
         .into_par_iter()
         .map(|v| mesh.infer_local_knots(VertID(v)))
@@ -38,7 +39,6 @@ fn knot_vectors(mesh: &TMesh) -> Vec<LocalKnots> {
 #[cfg(test)]
 mod tests {
     use t_spline::tmesh::ids::FaceID;
-    use t_spline::math::Point;
     use super::*;
     use t_spline::TSpline;
 
@@ -48,19 +48,19 @@ mod tests {
         let knots = knot_vectors(square.mesh());
 
         assert_eq!(
-            Some(Point::new(0., 0., 0.)),
+            Some(Point3::new(0., 0., 0.)),
             square.mesh().subs((0.0, 0.0), &knots)
         );
         assert_eq!(
-            Some(Point::new(1., 0., 0.)),
+            Some(Point3::new(1., 0., 0.)),
             square.mesh().subs((1.0, 0.0), &knots)
         );
         assert_eq!(
-            Some(Point::new(0., 1., 0.)),
+            Some(Point3::new(0., 1., 0.)),
             square.mesh().subs( (0.0, 1.0), &knots)
         );
         assert_eq!(
-            Some(Point::new(1., 1., 0.)),
+            Some(Point3::new(1., 1., 0.)),
             square.mesh().subs((1.0, 1.0), &knots)
         );
     }
@@ -72,10 +72,10 @@ mod tests {
 
         assert_eq!(4, points.len());
 
-        assert_eq!(Point::new(0., 0., 0.), points[0]);
-        assert_eq!(Point::new(1., 0., 0.), points[1]);
-        assert_eq!(Point::new(0., 1., 0.), points[2]);
-        assert_eq!(Point::new(1., 1., 0.), points[3]);
+        assert_eq!(Point3::new(0., 0., 0.), points[0]);
+        assert_eq!(Point3::new(1., 0., 0.), points[1]);
+        assert_eq!(Point3::new(0., 1., 0.), points[2]);
+        assert_eq!(Point3::new(1., 1., 0.), points[3]);
     }
 
     #[test]
@@ -85,7 +85,7 @@ mod tests {
         let center = square.mesh().subs( (0.5, 0.5), &knots).unwrap();
 
         // Check components with epsilon tolerance
-        let expected = Point::new(0.5, 0.5, 0.0);
+        let expected = Point3::new(0.5, 0.5, 0.0);
         let diff = center - expected;
         assert!(
             diff.x.abs() < 1e-9 && diff.y.abs() < 1e-9 && diff.z.abs() < 1e-9,
@@ -117,7 +117,7 @@ mod tests {
 
         // lift center t-junction,
         // spline should still be symmetrical
-        t_mesh.apply_mut(&mut |m: &mut TMesh| {
+        t_mesh.apply_mut(&mut |m: &mut TMesh<f64>| {
             let j = m.vertices.iter_mut().find(|v| v.is_t_junction).unwrap();
             j.geometry.z = 0.5;
         });

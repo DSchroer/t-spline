@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 cgmath = "0.18.0"
+fixed = "1.30.0"
+num-traits = "0.2.19"

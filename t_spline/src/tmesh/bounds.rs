@@ -1,47 +1,48 @@
 use crate::tmesh::control_point::ControlPoint;
 use crate::tmesh::ids::{EdgeID, FaceID};
 use crate::tmesh::TMesh;
+use num_traits::Float;
 
 #[derive(Debug, Clone, Copy)]
-pub struct Bounds {
-    pub s: (f64, f64),
-    pub t: (f64, f64),
+pub struct Bounds<T> {
+    pub s: (T, T),
+    pub t: (T, T),
 }
 
-impl Default for Bounds {
+impl<T: Float> Default for Bounds<T> {
     fn default() -> Self {
         Self{
-            s: (f64::MAX, f64::MIN),
-            t: (f64::MAX, f64::MIN),
+            s: (T::max_value(), T::min_value()),
+            t: (T::max_value(), T::min_value()),
         }
     }
 }
 
-impl Bounds {
+impl<T: Float> Bounds<T> {
     /// Area of the ST Bounds
-    pub fn area(&self) -> f64 {
+    pub fn area(&self) -> T {
         (self.s.1) - self.s.0 * (self.t.1 - self.t.0)
     }
 
     /// Center of the ST Bounds
-    pub fn center(&self) -> (f64, f64) {
-        ((self.s.0 + self.s.1) / 2., (self.t.0 + self.t.1) / 2.)
+    pub fn center(&self) -> (T, T) {
+        ((self.s.0 + self.s.1) / T::from(2).unwrap(), (self.t.0 + self.t.1) / T::from(2).unwrap())
     }
 
     /// Point i in a grid of resolution * resolution
-    pub fn interpolate(&self, i: usize, resolution: usize) -> (f64, f64) {
-        let denom = (resolution - 1) as f64;
+    pub fn interpolate(&self, i: usize, resolution: usize) -> (T, T) {
+        let denom = T::from(resolution - 1).unwrap();
 
-        let u_i = i % resolution;
-        let v_i = i / resolution;
+        let u_i = T::from(i % resolution).unwrap();
+        let v_i = T::from(i / resolution).unwrap();
         let s = if resolution > 1 {
-            self.s.0 + (u_i as f64 / denom) * (self.s.1 - self.s.0)
+            self.s.0 + (u_i / denom) * (self.s.1 - self.s.0)
         } else {
             self.s.0
         };
 
         let t = if resolution > 1 {
-            self.t.0 + (v_i as f64 / denom) * (self.t.1 - self.t.0)
+            self.t.0 + (v_i / denom) * (self.t.1 - self.t.0)
         } else {
             self.t.0
         };
@@ -49,24 +50,24 @@ impl Bounds {
         (s, t)
     }
 
-    pub fn add_mesh(&mut self, mesh: &TMesh) {
+    pub fn add_mesh(&mut self, mesh: &TMesh<T>) {
         for v in &mesh.vertices {
             self.add_vertex(v)
         }
     }
 
-    pub fn add_face(&mut self, mesh: &TMesh, face: FaceID) {
+    pub fn add_face(&mut self, mesh: &TMesh<T>, face: FaceID) {
         for e in mesh.face_edges(face) {
             self.add_edge(mesh, e);
         }
     }
 
-    pub fn add_edge(&mut self, mesh: &TMesh, edge: EdgeID) {
+    pub fn add_edge(&mut self, mesh: &TMesh<T>, edge: EdgeID) {
         let v = mesh.vertex(mesh.edge(edge).origin);
         self.add_vertex(v)
     }
 
-    pub fn add_vertex(&mut self, point: &ControlPoint) {
+    pub fn add_vertex(&mut self, point: &ControlPoint<T>) {
         self.s.0 = self.s.0.min(point.uv.s);
         self.s.1 = self.s.1.max(point.uv.s);
 
