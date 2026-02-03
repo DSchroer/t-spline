@@ -94,21 +94,13 @@ fn subs(mesh: &TMesh, (s, t): (f64, f64), knot_cache: &[LocalKnots]) -> Option<P
 
         let basis_s = cubic_basis_function(s, s_knots);
         let basis_t = cubic_basis_function(t, t_knots);
-        let weight = vert.geometry.w;
-        let basis = basis_s * basis_t * weight;
+        let basis = basis_s * basis_t * vert.geometry.w;
 
-        if basis.abs() > 1e-12 {
-            numerator += vert.geometry * basis; // geometry is pre-multiplied by weight usually?
-            // Note: In rational splines, P_i usually stored as (wx, wy, wz, w).
-            // If geometry is just (x,y,z,w), we multiply by basis.
-            // Standard formula: sum(P_i * w_i * B_i) / sum(w_i * B_i)
-            // If Vector4 is (x,y,z,w), then just add basis * Vector4.
-        }
-        denominator += basis_s * basis_t * weight; // Correct denominator accumulation
+        numerator += vert.geometry * basis;
+        denominator += basis;
     }
 
-    if denominator.abs() < 1e-9 {
-        // Handle undefined regions or holes
+    if denominator == 0. {
         return None;
     }
 
