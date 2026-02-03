@@ -25,7 +25,7 @@ pub struct TMesh<T> {
 
 pub type LocalKnots<T> = ([T; 5], [T; 5]);
 
-impl<T: Float> TMesh<T> {
+impl<T> TMesh<T> {
     pub fn vertex(&self, id: VertID) -> &ControlPoint<T> {
         &self.vertices[id.0]
     }
@@ -42,7 +42,6 @@ impl<T: Float> TMesh<T> {
         let start_edge = self.faces[face_id.0].edge;
         let mut edges = Vec::new();
         let mut curr = start_edge;
-
         loop {
             edges.push(curr);
             curr = self.edge(curr).next;
@@ -82,7 +81,9 @@ impl<T: Float> TMesh<T> {
         }
         None
     }
+}
 
+impl<T: Float> TMesh<T> {
     /// Infers the local knot vectors for a specific control point.
     /// Returns (s_vector, t_vector).
     pub fn infer_local_knots(&self, v_id: VertID) -> ([T; 5], [T; 5]) {
