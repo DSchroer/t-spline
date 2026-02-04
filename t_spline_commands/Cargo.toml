@@ -3,11 +3,14 @@ name = "t-spline-commands"
 version = "0.1.0"
 edition = "2024"
 license = "GPL-3.0"
+description = "operations to perform on t-spline data structures"
+repository = "https://github.com/DSchroer/t-spline"
+homepage = "https://github.com/DSchroer/t-spline"
 
 [dependencies]
 rayon = "1.11.0"
 thiserror = "2.0.18"
-t-spline = { path = "../t_spline" }
+t-spline = { path = "../t_spline", version = "0.1.0" }
 num-traits = "0.2.19"
 
 [dev-dependencies]
