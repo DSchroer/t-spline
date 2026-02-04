@@ -14,6 +14,7 @@ use crate::tmesh::half_edge::HalfEdge;
 use crate::tmesh::ids::{EdgeID, FaceID, VertID};
 use alloc::vec::Vec;
 use nalgebra::{Point3, Vector4};
+use crate::tmesh::segment::{ParamPoint, Segment};
 
 #[derive(Debug, Clone, Default)]
 pub struct TMesh<T> {
@@ -234,8 +235,8 @@ impl<T: Numeric> TMesh<T> {
                         e_p2_const
                     };
 
-                    if ray_const >= min_c - T::from_f32(1e-9).unwrap()
-                        && ray_const <= max_c + T::from_f32(1e-9).unwrap()
+                    if ray_const >= min_c - T::delta()
+                        && ray_const <= max_c + T::delta()
                     {
                         // Edge crosses or touches the ray line.
                         // But we must exclude the start vertex itself (which is p1 or p2)
@@ -246,7 +247,7 @@ impl<T: Numeric> TMesh<T> {
                         // Var = p1.v + t * (p2.v - p1.v)
 
                         let intersect_var =
-                            if (e_p2_const - e_p1_const).abs() < T::from_f32(1e-12).unwrap() {
+                            if (e_p2_const - e_p1_const).abs() < T::delta() {
                                 // Edge is parallel to ray? Then it must be collinear.
                                 // If collinear, we pick the point closest to ray_start but > ray_start
                                 // This case usually handled by find_next_vertex_in_direction, but
@@ -260,8 +261,8 @@ impl<T: Numeric> TMesh<T> {
 
                         let dist = intersect_var - ray_start;
 
-                        if ((positive && dist > T::from_f32(1e-6).unwrap())
-                            || (!positive && dist < T::from_f32(-1e-6).unwrap()))
+                        if ((positive && dist > T::delta())
+                            || (!positive && dist < T::delta()))
                             && dist.abs() < closest_dist
                         {
                             closest_dist = dist.abs();
@@ -309,13 +310,13 @@ impl<T: Numeric> TMesh<T> {
 
             // Check if the edge is collinear with the search axis
             let is_collinear = match axis {
-                Direction::S => (dest_v.uv.t - v.uv.t).abs() < T::from_f32(1e-12).unwrap(),
-                Direction::T => (dest_v.uv.s - v.uv.s).abs() < T::from_f32(1e-12).unwrap(),
+                Direction::S => (dest_v.uv.t - v.uv.t).abs() < T::delta(),
+                Direction::T => (dest_v.uv.s - v.uv.s).abs() < T::delta(),
             };
 
             if is_collinear
-                && ((positive && delta > T::from_f32(1e-12).unwrap())
-                    || (!positive && delta < -T::from_f32(1e-12).unwrap()))
+                && ((positive && delta > T::delta())
+                    || (!positive && delta < -T::delta()))
             {
                 return Some(dest_id);
             }
@@ -329,128 +330,127 @@ impl<T: Numeric> TMesh<T> {
         None
     }
 
-    // /// Casts a ray in `direction` for `steps` topological units.
-    // /// Returns the coordinate found.
-    // fn cast_ray_for_knot(&self, start_v: VertID, dir: Direction, steps: i32) -> f64 {
-    //     let mut curr_v = start_v;
-    //     let is_forward = steps > 0;
-    //     let count = steps.abs();
-    //
-    //     for _ in 0..count {
-    //         match self.find_next_orthogonal_edge(curr_v, dir, is_forward) {
-    //             Some(next_v) => {
-    //                 curr_v = next_v;
-    //             }
-    //             None => {
-    //                 // Boundary reached.
-    //                 // Standard T-Spline rule: extend the last interval or repeat knot.
-    //                 // Here we simply return the boundary coordinate.
-    //                 // A more robust impl would repeat the boundary knot if steps remain.
-    //                 return match dir {
-    //                     Direction::S => self.vertex(curr_v).uv.s,
-    //                     Direction::T => self.vertex(curr_v).uv.t,
-    //                 };
-    //             }
-    //         }
-    //     }
-    //
-    //     match dir {
-    //         Direction::S => self.vertex(curr_v).uv.s,
-    //         Direction::T => self.vertex(curr_v).uv.t,
-    //     }
-    // }
+    /// Casts a ray in `direction` for `steps` topological units.
+    /// Returns the coordinate found.
+    fn cast_ray_for_knot(&self, start_v: VertID, dir: Direction, steps: i32) -> T {
+        let mut curr_v = start_v;
+        let is_forward = steps > 0;
+        let count = steps.abs();
 
-    // /// Finds the next vertex connected by an edge in the given direction.
-    // /// This abstracts the topology navigation.
-    // fn find_next_orthogonal_edge(&self, v: VertID, dir: Direction, forward: bool) -> Option<VertID> {
-    //     let start_edge = self.vertex(v).outgoing_edge?;
-    //     let mut curr = start_edge;
-    //
-    //     // Circulate to find edge aligned with direction
-    //     loop {
-    //         let edge = self.edge(curr);
-    //
-    //         // Check alignment. This assumes edges store their parametric direction.
-    //         // In a real implementation, we might check the geometry of the UVs.
-    //         let is_aligned = edge.direction == dir;
-    //
-    //         // "Forward" in S means increasing S.
-    //         // We need to check geometry or explicit flags.
-    //         // Simplified logic: assume edges are directed.
-    //         let geometry_delta = if let Some(twin) = edge.twin {
-    //             let dest = self.edge(twin).origin;
-    //             let uv_dest = self.vertex(dest).uv;
-    //             let uv_src = self.vertex(edge.origin).uv;
-    //             match dir {
-    //                 Direction::S => uv_dest.s - uv_src.s,
-    //                 Direction::T => uv_dest.t - uv_src.t,
-    //             }
-    //         } else { 0.0 };
-    //
-    //         if is_aligned {
-    //             if (forward && geometry_delta > 0.0)
-    //                 || (!forward && geometry_delta < 0.0) {
-    //                 return edge.twin.map(|id| self.edge(id).origin);
-    //             }
-    //         }
-    //
-    //         // Move to next spoke
-    //         if let Some(twin) = edge.twin {
-    //             curr = self.edge(twin).next;
-    //         } else {
-    //             break;
-    //         }
-    //         if curr == start_edge { break; }
-    //     }
-    //     None
-    // }
+        for _ in 0..count {
+            match self.find_next_orthogonal_edge(curr_v, dir, is_forward) {
+                Some(next_v) => {
+                    curr_v = next_v;
+                }
+                None => {
+                    // Boundary reached.
+                    // Standard T-Spline rule: extend the last interval or repeat knot.
+                    // Here we simply return the boundary coordinate.
+                    // A more robust impl would repeat the boundary knot if steps remain.
+                    return match dir {
+                        Direction::S => self.vertex(curr_v).uv.s,
+                        Direction::T => self.vertex(curr_v).uv.t,
+                    };
+                }
+            }
+        }
 
-    // // Validates if the current mesh satisfies ASTS conditions.
-    // pub fn validate_asts(&self) -> bool {
-    //     let h_exts = self.collect_extensions(Direction::S);
-    //     let v_exts = self.collect_extensions(Direction::T);
-    //
-    //     for h in &h_exts {
-    //         for v in &v_exts {
-    //             if h.intersects(v) {
-    //                 return false; // Intersection detected!
-    //             }
-    //         }
-    //     }
-    //     true
-    // }
+        match dir {
+            Direction::S => self.vertex(curr_v).uv.s,
+            Direction::T => self.vertex(curr_v).uv.t,
+        }
+    }
 
-    // fn collect_extensions(&self, dir: Direction) -> Vec<Segment> {
-    //     let mut extensions = Vec::new();
-    //
-    //     for (idx, vert) in self.vertices.iter().enumerate() {
-    //         if!vert.is_t_junction { continue; }
-    //
-    //         // Check if T-junction points in 'dir'
-    //         // A T-junction "points" into the face it is missing an edge for.
-    //         // We need logic to determine orientation of the T.
-    //
-    //         if self.t_junction_orientation(VertID(idx)) == dir {
-    //             // Trace ray until it hits a perpendicular full edge
-    //             let start_uv = vert.uv;
-    //             let end_val = self.cast_ray_for_knot(VertID(idx), dir, 2); // heuristic distance
-    //             // Real ASTS tracing must go until it hits a line in the T-mesh
-    //             // that is perpendicular to the extension.
-    //
-    //             let end_uv = match dir {
-    //                 Direction::S => ParamPoint { s: end_val, t: start_uv.t },
-    //                 Direction::T => ParamPoint { s: start_uv.s, t: end_val },
-    //             };
-    //             extensions.push(Segment { start: start_uv, end: end_uv });
-    //         }
-    //     }
-    //     extensions
-    // }
+    /// Finds the next vertex connected by an edge in the given direction.
+    /// This abstracts the topology navigation.
+    fn find_next_orthogonal_edge(&self, v: VertID, dir: Direction, forward: bool) -> Option<VertID> {
+        let start_edge = self.vertex(v).outgoing_edge?;
+        let mut curr = start_edge;
 
-    // fn t_junction_orientation(&self, v: VertID) -> Direction {
-    //     // Logic to inspect neighbors and determine if T points up/down (T) or left/right (S)
-    //     Direction::S // Stub
-    // }
+        // Circulate to find edge aligned with direction
+        loop {
+            let edge = self.edge(curr);
+
+            // Check alignment. This assumes edges store their parametric direction.
+            // In a real implementation, we might check the geometry of the UVs.
+            let is_aligned = edge.direction == dir;
+
+            // "Forward" in S means increasing S.
+            // We need to check geometry or explicit flags.
+            // Simplified logic: assume edges are directed.
+            let geometry_delta = if let Some(twin) = edge.twin {
+                let dest = self.edge(twin).origin;
+                let uv_dest = self.vertex(dest).uv;
+                let uv_src = self.vertex(edge.origin).uv;
+                match dir {
+                    Direction::S => uv_dest.s - uv_src.s,
+                    Direction::T => uv_dest.t - uv_src.t,
+                }
+            } else { T::zero() };
+
+            if is_aligned {
+                if (forward && geometry_delta > T::zero())
+                    || (!forward && geometry_delta < T::zero()) {
+                    return edge.twin.map(|id| self.edge(id).origin);
+                }
+            }
+
+            // Move to next spoke
+            if let Some(twin) = edge.twin {
+                curr = self.edge(twin).next;
+            } else {
+                break;
+            }
+            if curr == start_edge { break; }
+        }
+        None
+    }
+
+    // Validates if the current mesh satisfies ASTS conditions.
+    pub fn validate_asts(&self) -> bool {
+        let h_exts = self.collect_extensions(Direction::S);
+        let v_exts = self.collect_extensions(Direction::T);
+
+        for h in &h_exts {
+            for v in &v_exts {
+                if h.intersects(v) {
+                    return false; // Intersection detected!
+                }
+            }
+        }
+        true
+    }
+
+    fn collect_extensions(&self, dir: Direction) -> Vec<Segment<T>> {
+        let mut extensions = Vec::new();
+
+        for (idx, vert) in self.vertices.iter().enumerate() {
+            if!vert.is_t_junction { continue; }
+
+            // Check if T-junction points in 'dir'
+            // A T-junction "points" into the face it is missing an edge for.
+            // We need logic to determine orientation of the T.
+
+            if self.t_junction_orientation(VertID(idx)) == dir {
+                // Trace ray until it hits a perpendicular full edge
+                let start_uv = vert.uv;
+                let end_val = self.cast_ray_for_knot(VertID(idx), dir, 2); // heuristic distance
+                // Real ASTS tracing must go until it hits a line in the T-mesh
+                // that is perpendicular to the extension.
+
+                let end_uv = match dir {
+                    Direction::S => ParamPoint { s: end_val, t: start_uv.t },
+                    Direction::T => ParamPoint { s: start_uv.s, t: end_val },
+                };
+                extensions.push(Segment { start: start_uv, end: end_uv });
+            }
+        }
+        extensions
+    }
+
+    fn t_junction_orientation(&self, v: VertID) -> Direction {
+        self.edge(self.vertex(v).outgoing_edge.unwrap()).direction
+    }
 }
 
 /// Evaluates a univariate cubic B-spline basis function.
@@ -467,8 +467,8 @@ pub fn cubic_basis_function<T: Numeric>(u: T, knots: &[T; 5]) -> T {
 
     // Clamp u to be strictly inside the support for the half-open interval logic,
     // effectively taking the limit from the left at the boundary.
-    let u_eval = if u >= knots[4] {
-        knots[4] - T::from_f32(1e-9).unwrap()
+    let u = if u == knots[4] {
+        knots[4] - T::delta()
     } else {
         u
     };
@@ -478,7 +478,7 @@ pub fn cubic_basis_function<T: Numeric>(u: T, knots: &[T; 5]) -> T {
     let mut n = [T::zero(); 4];
     for i in 0..4 {
         // Standard half-open interval check [t_i, t_{i+1})
-        if u_eval >= knots[i] && u_eval < knots[i + 1] {
+        if u >= knots[i] && u < knots[i + 1] {
             n[i] = T::one();
         }
     }
@@ -525,7 +525,7 @@ impl<T: Numeric + 'static> TMesh<T> {
             let basis_s = cubic_basis_function(s, s_knots);
             let basis_t = cubic_basis_function(t, t_knots);
             let basis = basis_s * basis_t * vert.geometry.w;
-            
+
             numerator += vert.geometry * basis;
             denominator += basis;
         }

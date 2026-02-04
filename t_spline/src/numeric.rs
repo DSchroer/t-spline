@@ -11,18 +11,45 @@ pub trait Numeric:
     fn min(self, other: Self) -> Self {
         if self < other { self } else { other }
     }
+
+    fn delta() -> Self;
 }
 
-impl<T> Numeric for T where
-    T: Num + Copy + PartialOrd + Signed + NumAssign + Debug + Display + Bounded + FromPrimitive
-{
+macro_rules! impl_numeric_float {
+    ($($t:ty),*) => {
+        $(
+            impl Numeric for $t {
+                fn delta() -> Self { <$t>::EPSILON }
+            }
+        )*
+    }
+}
+
+impl_numeric_float!(f32, f64);
+
+#[cfg(feature = "fixed")]
+mod fixed_impl {
+    use super::*;
+
+    macro_rules! impl_numeric_fixed {
+        ($($t:ident),*) => {
+            $(
+                impl<Frac: fixed::types::extra::LeEqU32> Numeric for fixed::$t<Frac>
+                where
+                    fixed::$t<Frac>: fixed::traits::FixedSigned + Num + Signed + NumAssign + FromPrimitive + Bounded
+                {
+                    fn delta() -> Self { Self::DELTA }
+                }
+            )*
+        }
+    }
+
+    impl_numeric_fixed!(FixedI8, FixedI16, FixedI32, FixedI64, FixedI128);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fixed::types::I10F22;
-    use num_traits::One;
     use std::hint::black_box;
 
     #[test]
@@ -31,14 +58,12 @@ mod tests {
         needs_numeric(1f32);
     }
 
+    #[cfg(feature = "fixed")]
     #[test]
     fn it_supports_fixed() {
-        needs_numeric(I10F22::one());
-    }
+        use num_traits::One;
 
-    #[test]
-    fn it_supports_integers() {
-        needs_numeric(0isize);
+        needs_numeric(fixed::types::I10F22::one());
     }
 
     fn needs_numeric(value: impl Numeric) {

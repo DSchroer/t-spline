@@ -4,6 +4,7 @@ use t_spline::tmesh::ids::VertID;
 use t_spline::tmesh::{LocalKnots, TMesh};
 use t_spline::{Command, Numeric, Point3};
 
+/// Calculate points evenly across the surface
 pub struct Tessellate {
     pub resolution: usize,
 }
@@ -15,21 +16,26 @@ impl<T: Numeric + Send + Sync + 'static> Command<T> for Tessellate {
         let mut bounds = Bounds::default();
         bounds.add_mesh(mesh);
 
-        let knot_cache: Vec<_> = knot_vectors(mesh);
-
-        (0..self.resolution * self.resolution)
-            .into_par_iter()
-            .map(|i| mesh.subs(bounds.interpolate(i, self.resolution), &knot_cache))
-            .filter_map(|p| p)
-            .collect()
+        let knot_cache: Vec<_> = Self::knot_vectors(mesh);
+        Self::tessellate(self.resolution, bounds, mesh, &knot_cache)
     }
 }
 
-fn knot_vectors<T: Numeric + Send + Sync>(mesh: &TMesh<T>) -> Vec<LocalKnots<T>> {
-    (0..mesh.vertices.len())
-        .into_par_iter()
-        .map(|v| mesh.infer_local_knots(VertID(v)))
-        .collect()
+impl Tessellate {
+    pub fn tessellate<T: Numeric + Send + Sync + 'static>(resolution: usize, bounds: Bounds<T>, mesh: &TMesh<T>, knot_cache: &[LocalKnots<T>]) -> Vec<Point3<T>> {
+        (0..resolution * resolution)
+            .into_par_iter()
+            .map(|i| mesh.subs(bounds.interpolate(i, resolution), &knot_cache))
+            .filter_map(|p| p)
+            .collect()
+    }
+
+    pub fn knot_vectors<T: Numeric + Send + Sync>(mesh: &TMesh<T>) -> Vec<LocalKnots<T>> {
+        (0..mesh.vertices.len())
+            .into_par_iter()
+            .map(|v| mesh.infer_local_knots(VertID(v)))
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -41,7 +47,7 @@ mod tests {
     #[test]
     pub fn it_can_evaluate_points_on_square() {
         let square = TSpline::new_unit_square();
-        let knots = knot_vectors(square.mesh());
+        let knots = Tessellate::knot_vectors(square.mesh());
 
         assert_eq!(
             Some(Point3::new(0., 0., 0.)),
@@ -77,7 +83,7 @@ mod tests {
     #[test]
     pub fn it_can_evaluate_center() {
         let square = TSpline::new_unit_square();
-        let knots = knot_vectors(square.mesh());
+        let knots = Tessellate::knot_vectors(square.mesh());
         let center = square.mesh().subs((0.5, 0.5), &knots).unwrap();
 
         // Check components with epsilon tolerance
@@ -115,7 +121,7 @@ mod tests {
             j.geometry.z = 0.5;
         });
 
-        let knots = knot_vectors(t_mesh.mesh());
+        let knots = Tessellate::knot_vectors(t_mesh.mesh());
 
         let mut f1_bounds = Bounds::default();
         f1_bounds.add_face(&t_mesh.mesh(), FaceID(1));

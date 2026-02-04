@@ -34,21 +34,16 @@ impl<T: Numeric> Bounds<T> {
 
     /// Point i in a grid of resolution * resolution
     pub fn interpolate(&self, i: usize, resolution: usize) -> (T, T) {
-        let denom = T::from_usize(resolution - 1).unwrap();
+        if resolution <= 1 {
+            return (self.s.0, self.t.0);
+        }
 
+        let denom = T::from_usize(resolution - 1).unwrap();
         let u_i = T::from_usize(i % resolution).unwrap();
         let v_i = T::from_usize(i / resolution).unwrap();
-        let s = if resolution > 1 {
-            self.s.0 + (u_i / denom) * (self.s.1 - self.s.0)
-        } else {
-            self.s.0
-        };
 
-        let t = if resolution > 1 {
-            self.t.0 + (v_i / denom) * (self.t.1 - self.t.0)
-        } else {
-            self.t.0
-        };
+        let s = self.s.0 + (u_i * (self.s.1 - self.s.0)) / denom;
+        let t = self.t.0 + (v_i * (self.t.1 - self.t.0)) / denom;
 
         (s, t)
     }
@@ -76,5 +71,32 @@ impl<T: Numeric> Bounds<T> {
 
         self.t.0 = self.t.0.min(point.uv.t);
         self.t.1 = self.t.1.max(point.uv.t);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_finds_the_center() {
+        let b = Bounds{s: (0.0, 1.0), t: (0.0, 1.0), };
+
+        assert_eq!(b.center(), (0.5, 0.5));
+    }
+
+    #[test]
+    fn it_interpolates_types() {
+        it_interpolates::<f64>();
+        it_interpolates::<f32>();
+        #[cfg(feature = "fixed")]
+        it_interpolates::<fixed::types::I10F22>();
+    }
+
+    fn it_interpolates<T: Numeric>() {
+        let b = Bounds{s: (T::zero(), T::one()), t: (T::zero(), T::one()), };
+
+        assert_eq!(b.interpolate(0, 10), (T::zero(), T::zero()));
+        assert_eq!(b.interpolate(99, 10), (T::one(), T::one()));
     }
 }

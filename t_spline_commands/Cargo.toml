@@ -11,4 +11,5 @@ num-traits = "0.2.19"
 
 [dev-dependencies]
 t-spline-io = { path = "../t_spline_io" }
+t-spline = { path = "../t_spline", features = ["fixed"] }
 fixed = { version = "1.30.0", features = ["num-traits"]}

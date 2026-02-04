@@ -31,6 +31,27 @@ impl ObjWriter {
         Ok(self)
     }
 
+    pub fn with_triangles<T: Numeric + 'static>(
+        mut self,
+        name: &str,
+        points: &[Point3<T>],
+        triangles: &[[usize; 3]],
+    ) -> Result<Self, std::fmt::Error> {
+        let vertex_offset = self.vertex_count + 1;
+        writeln!(self.obj, r"o {name}")?;
+
+        for point in points {
+            self.vertex_count += 1;
+            writeln!(self.obj, "v {} {} {}", point.x, point.y, point.z)?;
+        }
+
+        for t in triangles {
+            writeln!(self.obj, "f {} {} {}", t[0] + vertex_offset, t[1] + vertex_offset, t[2] + vertex_offset)?;
+        }
+
+        Ok(self)
+    }
+
     pub fn with_control_surface<T: Numeric + 'static>(
         mut self,
         name: &str,
