@@ -22,7 +22,7 @@ use t_spline_io::obj_writer::ObjWriter;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let spline = TSpline::new_simple();
-    let points = Tessellate { resolution: 100 }.apply(&spline);
+    let points = Tessellate { resolution: 20 }.apply(&spline);
 
     ObjWriter::default()
         .with_points("Surface", &points)?

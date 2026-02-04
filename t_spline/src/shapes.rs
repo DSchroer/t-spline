@@ -389,6 +389,7 @@ impl TSpline<f64> {
         // Faces
         mesh.faces.push(Face { edge: EdgeID(0) });
         mesh.faces.push(Face { edge: EdgeID(4) });
+        mesh.faces.push(Face { edge: EdgeID(8) });
         mesh.into()
     }
 }

@@ -4,6 +4,8 @@ A modern t-spline implementation for use in computer graphics and CAD applicatio
 
 **Note:** I am releasing this early, there are still many bugs. Use at your own risk. Contributions are welcome.
 
+
+
 ## Getting Started
 
 ### Installation
@@ -39,6 +41,10 @@ cargo run --example t_junction
 
 ## Example Usage
 
+The control cage and tesselation viewed in Blender:
+![control cage and mesh](./sample.png)
+
+Source:
 ```rs
 // create a basic single t-junction spline
 let spline = TSpline::new_simple(); 
@@ -51,3 +57,4 @@ ObjWriter::default()
     .with_points("Points", &points)?
     .write(&mut std::io::stdout())?;
 ```
+

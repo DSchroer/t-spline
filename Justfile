@@ -8,7 +8,7 @@ ci: build build-no-std check-licenses
 example NAME:
     cargo run --example {{NAME}} > {{NAME}}.obj
 
-examples: (example "fixed") (example "t_junction")
+examples: (example "fixed") (example "t_junction") (example "simple")
 
 build:
     cargo build --locked
