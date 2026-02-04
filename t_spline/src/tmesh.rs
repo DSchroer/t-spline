@@ -525,14 +525,8 @@ impl<T: Numeric + 'static> TMesh<T> {
             let basis_s = cubic_basis_function(s, s_knots);
             let basis_t = cubic_basis_function(t, t_knots);
             let basis = basis_s * basis_t * vert.geometry.w;
-
-            let mapped = vert.geometry.map(|g| g * basis);
-
-            numerator.x += mapped.x;
-            numerator.y += mapped.y;
-            numerator.z += mapped.z;
-            numerator.w += mapped.w;
-
+            
+            numerator += vert.geometry * basis;
             denominator += basis;
         }
 
