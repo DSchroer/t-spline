@@ -6,11 +6,11 @@ A modern t-spline implementation for use in computer graphics and CAD applicatio
 
 ## Crates
 
-| Crate             | Description                                                          |
-|-------------------|----------------------------------------------------------------------|
-| t-spline          | The data structure and base algorithms of t-splines.                 |
-| t-spline-commands | Commands to modify and interact with t-splines.                      |
-| t-spline-io       | Tools for reading and writing 3D data for interop and visualisation. |
+| Crate             | Description                                                          | features                       |
+|-------------------|----------------------------------------------------------------------|--------------------------------|
+| t-spline          | The data structure and base algorithms of t-splines.                 | **fixed**: Fixed point support |
+| t-spline-commands | Commands to modify and interact with t-splines.                      |                                |
+| t-spline-io       | Tools for reading and writing 3D data for interop and visualisation. |                                |
 
 ## Example
 

@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2026 Dominick Schroer
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 use crate::Numeric;
 use crate::tmesh::TMesh;
 use crate::tmesh::control_point::ControlPoint;
@@ -80,7 +97,10 @@ mod tests {
 
     #[test]
     fn it_finds_the_center() {
-        let b = Bounds{s: (0.0, 1.0), t: (0.0, 1.0), };
+        let b = Bounds {
+            s: (0.0, 1.0),
+            t: (0.0, 1.0),
+        };
 
         assert_eq!(b.center(), (0.5, 0.5));
     }
@@ -94,7 +114,10 @@ mod tests {
     }
 
     fn it_interpolates<T: Numeric>() {
-        let b = Bounds{s: (T::zero(), T::one()), t: (T::zero(), T::one()), };
+        let b = Bounds {
+            s: (T::zero(), T::one()),
+            t: (T::zero(), T::one()),
+        };
 
         assert_eq!(b.interpolate(0, 10), (T::zero(), T::zero()));
         assert_eq!(b.interpolate(99, 10), (T::one(), T::one()));

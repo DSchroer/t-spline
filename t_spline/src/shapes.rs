@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2026 Dominick Schroer
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 use crate::tmesh::control_point::ControlPoint;
 use crate::tmesh::direction::Direction;
 use crate::tmesh::face::Face;
@@ -175,7 +192,9 @@ impl TSpline<f64> {
 
         // Faces
         for i in 0..6 {
-            mesh.faces.push(Face { edge: EdgeID(i * 4) });
+            mesh.faces.push(Face {
+                edge: EdgeID(i * 4),
+            });
         }
 
         mesh.into()
@@ -387,8 +406,9 @@ mod tests {
         assert_eq!(mesh.edges.len(), 24, "Should have 24 half-edges");
         assert_eq!(mesh.faces.len(), 6, "Should have 6 faces");
 
-        assert!(mesh.validate_asts(), "Mesh should be Analysis-Suitable (no T-junctions)");
+        assert!(
+            mesh.validate_asts(),
+            "Mesh should be Analysis-Suitable (no T-junctions)"
+        );
     }
 }
-
-

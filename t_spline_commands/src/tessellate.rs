@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2026 Dominick Schroer
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 use rayon::prelude::*;
 use t_spline::tmesh::bounds::Bounds;
 use t_spline::tmesh::ids::VertID;
@@ -22,10 +39,15 @@ impl<T: Numeric + Send + Sync + 'static> Command<T> for Tessellate {
 }
 
 impl Tessellate {
-    pub fn tessellate<T: Numeric + Send + Sync + 'static>(resolution: usize, bounds: Bounds<T>, mesh: &TMesh<T>, knot_cache: &[LocalKnots<T>]) -> Vec<Point3<T>> {
+    pub fn tessellate<T: Numeric + Send + Sync + 'static>(
+        resolution: usize,
+        bounds: Bounds<T>,
+        mesh: &TMesh<T>,
+        knot_cache: &[LocalKnots<T>],
+    ) -> Vec<Point3<T>> {
         (0..resolution * resolution)
             .into_par_iter()
-            .map(|i| mesh.subs(bounds.interpolate(i, resolution), &knot_cache))
+            .map(|i| mesh.subs(bounds.interpolate(i, resolution), knot_cache))
             .filter_map(|p| p)
             .collect()
     }

@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2026 Dominick Schroer
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 pub mod bounds;
 pub mod control_point;
 pub mod direction;
@@ -12,9 +29,9 @@ use crate::tmesh::direction::Direction;
 use crate::tmesh::face::Face;
 use crate::tmesh::half_edge::HalfEdge;
 use crate::tmesh::ids::{EdgeID, FaceID, VertID};
+use crate::tmesh::segment::{ParamPoint, Segment};
 use alloc::vec::Vec;
 use nalgebra::{Point3, Vector4};
-use crate::tmesh::segment::{ParamPoint, Segment};
 
 #[derive(Debug, Clone, Default)]
 pub struct TMesh<T> {
@@ -235,9 +252,7 @@ impl<T: Numeric> TMesh<T> {
                         e_p2_const
                     };
 
-                    if ray_const >= min_c - T::delta()
-                        && ray_const <= max_c + T::delta()
-                    {
+                    if ray_const >= min_c - T::delta() && ray_const <= max_c + T::delta() {
                         // Edge crosses or touches the ray line.
                         // But we must exclude the start vertex itself (which is p1 or p2)
                         // Distance check handles this if we ensure dist > epsilon
@@ -246,23 +261,21 @@ impl<T: Numeric> TMesh<T> {
                         // C = p1.c + t * (p2.c - p1.c) => t = (C - p1.c) / (p2.c - p1.c)
                         // Var = p1.v + t * (p2.v - p1.v)
 
-                        let intersect_var =
-                            if (e_p2_const - e_p1_const).abs() < T::delta() {
-                                // Edge is parallel to ray? Then it must be collinear.
-                                // If collinear, we pick the point closest to ray_start but > ray_start
-                                // This case usually handled by find_next_vertex_in_direction, but
-                                // if that failed, maybe we found a detached edge? Unlikely in valid mesh.
-                                // Ignore parallel edges in this fallback.
-                                continue;
-                            } else {
-                                let t = (ray_const - e_p1_const) / (e_p2_const - e_p1_const);
-                                e_p1_var + t * (e_p2_var - e_p1_var)
-                            };
+                        let intersect_var = if (e_p2_const - e_p1_const).abs() < T::delta() {
+                            // Edge is parallel to ray? Then it must be collinear.
+                            // If collinear, we pick the point closest to ray_start but > ray_start
+                            // This case usually handled by find_next_vertex_in_direction, but
+                            // if that failed, maybe we found a detached edge? Unlikely in valid mesh.
+                            // Ignore parallel edges in this fallback.
+                            continue;
+                        } else {
+                            let t = (ray_const - e_p1_const) / (e_p2_const - e_p1_const);
+                            e_p1_var + t * (e_p2_var - e_p1_var)
+                        };
 
                         let dist = intersect_var - ray_start;
 
-                        if ((positive && dist > T::delta())
-                            || (!positive && dist < T::delta()))
+                        if ((positive && dist > T::delta()) || (!positive && dist < T::delta()))
                             && dist.abs() < closest_dist
                         {
                             closest_dist = dist.abs();
@@ -315,8 +328,7 @@ impl<T: Numeric> TMesh<T> {
             };
 
             if is_collinear
-                && ((positive && delta > T::delta())
-                    || (!positive && delta < -T::delta()))
+                && ((positive && delta > T::delta()) || (!positive && delta < -T::delta()))
             {
                 return Some(dest_id);
             }
@@ -363,7 +375,12 @@ impl<T: Numeric> TMesh<T> {
 
     /// Finds the next vertex connected by an edge in the given direction.
     /// This abstracts the topology navigation.
-    fn find_next_orthogonal_edge(&self, v: VertID, dir: Direction, forward: bool) -> Option<VertID> {
+    fn find_next_orthogonal_edge(
+        &self,
+        v: VertID,
+        dir: Direction,
+        forward: bool,
+    ) -> Option<VertID> {
         let start_edge = self.vertex(v).outgoing_edge?;
         let mut curr = start_edge;
 
@@ -386,13 +403,15 @@ impl<T: Numeric> TMesh<T> {
                     Direction::S => uv_dest.s - uv_src.s,
                     Direction::T => uv_dest.t - uv_src.t,
                 }
-            } else { T::zero() };
+            } else {
+                T::zero()
+            };
 
-            if is_aligned {
-                if (forward && geometry_delta > T::zero())
-                    || (!forward && geometry_delta < T::zero()) {
-                    return edge.twin.map(|id| self.edge(id).origin);
-                }
+            if is_aligned
+                && ((forward && geometry_delta > T::zero())
+                    || (!forward && geometry_delta < T::zero()))
+            {
+                return edge.twin.map(|id| self.edge(id).origin);
             }
 
             // Move to next spoke
@@ -401,7 +420,9 @@ impl<T: Numeric> TMesh<T> {
             } else {
                 break;
             }
-            if curr == start_edge { break; }
+            if curr == start_edge {
+                break;
+            }
         }
         None
     }
@@ -425,7 +446,9 @@ impl<T: Numeric> TMesh<T> {
         let mut extensions = Vec::new();
 
         for (idx, vert) in self.vertices.iter().enumerate() {
-            if!vert.is_t_junction { continue; }
+            if !vert.is_t_junction {
+                continue;
+            }
 
             // Check if T-junction points in 'dir'
             // A T-junction "points" into the face it is missing an edge for.
@@ -439,10 +462,19 @@ impl<T: Numeric> TMesh<T> {
                 // that is perpendicular to the extension.
 
                 let end_uv = match dir {
-                    Direction::S => ParamPoint { s: end_val, t: start_uv.t },
-                    Direction::T => ParamPoint { s: start_uv.s, t: end_val },
+                    Direction::S => ParamPoint {
+                        s: end_val,
+                        t: start_uv.t,
+                    },
+                    Direction::T => ParamPoint {
+                        s: start_uv.s,
+                        t: end_val,
+                    },
                 };
-                extensions.push(Segment { start: start_uv, end: end_uv });
+                extensions.push(Segment {
+                    start: start_uv,
+                    end: end_uv,
+                });
             }
         }
         extensions
