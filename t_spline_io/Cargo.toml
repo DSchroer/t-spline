@@ -6,6 +6,7 @@ license = "GPL-3.0"
 description = "tools to read and write t-splines"
 repository = "https://github.com/DSchroer/t-spline"
 homepage = "https://github.com/DSchroer/t-spline"
+readme = "../README.md"
 
 [dependencies]
 t-spline = { path = "../t_spline", version = "0.1.0" }

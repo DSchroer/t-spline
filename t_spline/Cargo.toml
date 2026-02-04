@@ -6,6 +6,7 @@ license = "GPL-3.0"
 description = "t-spline data structure and basic algorithms"
 repository = "https://github.com/DSchroer/t-spline"
 homepage = "https://github.com/DSchroer/t-spline"
+readme = "../README.md"
 
 [features]
 fixed = [ "dep:fixed" ]

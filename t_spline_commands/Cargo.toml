@@ -6,6 +6,7 @@ license = "GPL-3.0"
 description = "operations to perform on t-spline data structures"
 repository = "https://github.com/DSchroer/t-spline"
 homepage = "https://github.com/DSchroer/t-spline"
+readme = "../README.md"
 
 [dependencies]
 rayon = "1.11.0"
