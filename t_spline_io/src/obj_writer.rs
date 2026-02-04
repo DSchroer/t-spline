@@ -14,19 +14,12 @@ impl ObjWriter {
         name: &str,
         points: &[Point3<T>],
     ) -> Result<Self, std::fmt::Error> {
-        let vertex_offset = self.vertex_count + 1;
         writeln!(self.obj, r"o {name}")?;
 
         for point in points {
             self.vertex_count += 1;
             writeln!(self.obj, "v {} {} {}", point.x, point.y, point.z)?;
         }
-
-        write!(self.obj, "l ")?;
-        for i in 0..points.len() {
-            write!(self.obj, "{} ", i + vertex_offset)?;
-        }
-        writeln!(self.obj)?;
 
         Ok(self)
     }

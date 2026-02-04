@@ -1,0 +1,1 @@
+By contributing to this project, you agree that your contributions may be licensed under the project's current GPLv3 license or any future commercial licenses offered by Dominick Schroer.
