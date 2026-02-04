@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let points = Tessellate { resolution: 100 }.apply(&spline);
 
     ObjWriter::default()
-        .with_control_surface("Control", &spline.mesh())?
+        // .with_control_surface("Control", &spline.mesh())?
         .with_points("Surface", &points)?
         .write(&mut std::io::stdout())?;
     Ok(())

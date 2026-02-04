@@ -1,15 +1,22 @@
 # Justfile to manage project tasks
 
+ci: build build-no-std check-licenses
+    cargo test --features fixed --locked
+    cargo clippy
+    cargo fmt --check
+
+example NAME:
+    cargo run --example {{NAME}} > {{NAME}}.obj
+
+examples: (example "fixed") (example "t_junction")
+
 build:
     cargo build --locked
 
 build-no-std:
     (cd t_spline && cargo build --target x86_64-unknown-none --locked)
 
-ci: build build-no-std check-licenses
-    cargo test --features fixed --locked
-    cargo clippy
-    cargo fmt --check
+
 
 # Validate that all source files contain the correct license header
 check-licenses:
