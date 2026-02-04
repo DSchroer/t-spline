@@ -79,6 +79,108 @@ impl<T: Numeric> TSpline<T> {
 }
 
 impl TSpline<f64> {
+    pub fn new_rounded_cube() -> TSpline<f64> {
+        let mut mesh = TMesh {
+            vertices: Vec::with_capacity(14),
+            edges: Vec::with_capacity(24),
+            faces: Vec::with_capacity(6),
+        };
+
+        // Vertices for an unfolded cube (cross layout)
+        // F is center at (1,1)-(2,2)
+        // L left, R right, B right of R
+        // Top above F, Bot below F
+        let raw_verts = [
+            (0.0, 1.0, -1.0, -1.0, -1.0), // 0: L-bot-left
+            (1.0, 1.0, -1.0, -1.0, 1.0),  // 1: L-bot-right / F-bot-left
+            (2.0, 1.0, 1.0, -1.0, 1.0),   // 2: F-bot-right / R-bot-left
+            (3.0, 1.0, 1.0, -1.0, -1.0),  // 3: R-bot-right / B-bot-left
+            (4.0, 1.0, -1.0, -1.0, -1.0), // 4: B-bot-right
+            (0.0, 2.0, -1.0, 1.0, -1.0),  // 5: L-top-left
+            (1.0, 2.0, -1.0, 1.0, 1.0),   // 6: L-top-right / F-top-left
+            (2.0, 2.0, 1.0, 1.0, 1.0),    // 7: F-top-right / R-top-left
+            (3.0, 2.0, 1.0, 1.0, -1.0),   // 8: R-top-right / B-top-left
+            (4.0, 2.0, -1.0, 1.0, -1.0),  // 9: B-top-right
+            (1.0, 0.0, -1.0, -1.0, -1.0), // 10: Bot-bot-left
+            (2.0, 0.0, 1.0, -1.0, -1.0),  // 11: Bot-bot-right
+            (1.0, 3.0, -1.0, 1.0, -1.0),  // 12: Top-top-left
+            (2.0, 3.0, 1.0, 1.0, -1.0),   // 13: Top-top-right
+        ];
+
+        for (u, v, x, y, z) in raw_verts.iter() {
+            mesh.vertices.push(ControlPoint {
+                geometry: Vector4::new(*x, *y, *z, 1.0),
+                uv: ParamPoint { s: *u, t: *v },
+                outgoing_edge: None,
+                is_t_junction: false,
+            });
+        }
+
+        let mut add_edge = |origin: usize,
+                            next: usize,
+                            prev: usize,
+                            twin: Option<usize>,
+                            face: usize,
+                            dir: Direction| {
+            let id = mesh.edges.len();
+            mesh.edges.push(HalfEdge {
+                origin: VertID(origin),
+                next: EdgeID(next),
+                prev: EdgeID(prev),
+                twin: twin.map(EdgeID),
+                face: Some(FaceID(face)),
+                knot_interval: 1.0,
+                direction: dir,
+            });
+            if mesh.vertices[origin].outgoing_edge.is_none() {
+                mesh.vertices[origin].outgoing_edge = Some(EdgeID(id));
+            }
+        };
+
+        // L (Face 0)
+        add_edge(0, 1, 3, None, 0, Direction::S); // 0
+        add_edge(1, 2, 0, Some(7), 0, Direction::T); // 1 (Twin 7)
+        add_edge(6, 3, 1, None, 0, Direction::S); // 2
+        add_edge(5, 0, 2, None, 0, Direction::T); // 3
+
+        // F (Face 1)
+        add_edge(1, 5, 7, Some(18), 1, Direction::S); // 4 (Twin 18)
+        add_edge(2, 6, 4, Some(11), 1, Direction::T); // 5 (Twin 11)
+        add_edge(7, 7, 5, Some(20), 1, Direction::S); // 6 (Twin 20)
+        add_edge(6, 4, 6, Some(1), 1, Direction::T); // 7 (Twin 1)
+
+        // R (Face 2)
+        add_edge(2, 9, 11, None, 2, Direction::S); // 8
+        add_edge(3, 10, 8, Some(15), 2, Direction::T); // 9 (Twin 15)
+        add_edge(8, 11, 9, None, 2, Direction::S); // 10
+        add_edge(7, 8, 10, Some(5), 2, Direction::T); // 11 (Twin 5)
+
+        // B (Face 3)
+        add_edge(3, 13, 15, None, 3, Direction::S); // 12
+        add_edge(4, 14, 12, None, 3, Direction::T); // 13
+        add_edge(9, 15, 13, None, 3, Direction::S); // 14
+        add_edge(8, 12, 14, Some(9), 3, Direction::T); // 15 (Twin 9)
+
+        // Bot (Face 4)
+        add_edge(10, 17, 19, None, 4, Direction::S); // 16
+        add_edge(11, 18, 16, None, 4, Direction::T); // 17
+        add_edge(2, 19, 17, Some(4), 4, Direction::S); // 18 (Twin 4)
+        add_edge(1, 16, 18, None, 4, Direction::T); // 19
+
+        // Top (Face 5)
+        add_edge(6, 21, 23, Some(6), 5, Direction::S); // 20 (Twin 6)
+        add_edge(7, 22, 20, None, 5, Direction::T); // 21
+        add_edge(13, 23, 21, None, 5, Direction::S); // 22
+        add_edge(12, 20, 22, None, 5, Direction::T); // 23
+
+        // Faces
+        for i in 0..6 {
+            mesh.faces.push(Face { edge: EdgeID(i * 4) });
+        }
+
+        mesh.into()
+    }
+
     /// Creates a simple T-Spline mesh with a T-junction, which is impossible
     /// to represent as a single NURBS patch.
     /// Topology:
@@ -268,8 +370,25 @@ impl TSpline<f64> {
         // Faces
         mesh.faces.push(Face { edge: EdgeID(0) });
         mesh.faces.push(Face { edge: EdgeID(4) });
-        mesh.faces.push(Face { edge: EdgeID(8) });
-
         mesh.into()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rounded_cube_topology() {
+        let spline = TSpline::new_rounded_cube();
+        let mesh = spline.into_mesh();
+
+        assert_eq!(mesh.vertices.len(), 14, "Should have 14 vertices");
+        assert_eq!(mesh.edges.len(), 24, "Should have 24 half-edges");
+        assert_eq!(mesh.faces.len(), 6, "Should have 6 faces");
+
+        assert!(mesh.validate_asts(), "Mesh should be Analysis-Suitable (no T-junctions)");
+    }
+}
+
+
