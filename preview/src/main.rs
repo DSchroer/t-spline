@@ -46,7 +46,6 @@ fn draw_points(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let point_mesh = meshes.add(Sphere::new(0.005));
-
     let point_mat = materials.add(StandardMaterial {
         base_color: tailwind::GREEN_500.into(),
         unlit: true,
