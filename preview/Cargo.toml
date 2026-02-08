@@ -1,0 +1,16 @@
+[package]
+name = "preview"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+bevy = { version = "0.18.0", features = ["free_camera"]}
+t-spline = { path = "../t_spline" }
+t-spline-commands = { path = "../t_spline_commands" }
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

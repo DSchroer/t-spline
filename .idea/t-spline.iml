@@ -7,6 +7,7 @@
       <sourceFolder url="file://$MODULE_DIR$/t_spline_commands/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/t_spline_commands/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/t_spline_io/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/preview/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/t_spline/target" />
       <excludeFolder url="file://$MODULE_DIR$/t_spline_commands/target" />
       <excludeFolder url="file://$MODULE_DIR$/t_spline_io/target" />

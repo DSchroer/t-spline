@@ -1,7 +1,7 @@
 [workspace]
 
 resolver = "3"
-members = [
+members = ["preview",
     "t_spline",
     "t_spline_commands",
     "t_spline_io"
