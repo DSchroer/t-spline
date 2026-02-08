@@ -4,15 +4,18 @@ use bevy::{
     prelude::*,
 };
 use t_spline::{Command, Point3, TSpline};
+use t_spline::tmesh::TMesh;
 use t_spline_commands::tessellate::Tessellate;
 
 fn main() {
-    let spline: TSpline<f64> = TSpline::new_unit_square();
-    let points = Tessellate { resolution: 20 }.apply(&spline);
+    let mut spline: TSpline<f64> = TSpline::new_unit_square();
+    spline.apply_mut(&mut |m: &mut TMesh<f64>| m.vertices[0].geometry.z = 0.5);
+
+    let points = Tessellate { resolution: 50 }.apply(&spline);
 
     App::new()
         .insert_resource(ClearColor(tailwind::BLUE_50.into()))
-        .insert_resource(Render { points })
+        .insert_resource(Render { points, spline })
         .add_plugins(DefaultPlugins)
         .add_plugins(FreeCameraPlugin)
         .add_systems(Startup, (setup, draw_points))
@@ -37,6 +40,7 @@ fn setup(mut commands: Commands) {
 #[derive(Resource)]
 struct Render {
     points: Vec<Point3<f64>>,
+    spline: TSpline<f64>,
 }
 
 fn draw_points(
@@ -57,6 +61,21 @@ fn draw_points(
             Mesh3d(point_mesh.clone()),
             MeshMaterial3d(point_mat.clone()),
             Transform::from_xyz(p.x as f32, p.y as f32, p.z as f32),
+        ));
+    }
+
+    let control_mesh = meshes.add(Sphere::new(0.05));
+    let control_mat = materials.add(StandardMaterial {
+        base_color: tailwind::AMBER_500.into(),
+        unlit: true,
+        ..default()
+    });
+
+    for p in &render.spline.mesh().vertices {
+        commands.spawn((
+            Mesh3d(control_mesh.clone()),
+            MeshMaterial3d(control_mat.clone()),
+            Transform::from_xyz(p.geometry.x as f32, p.geometry.y as f32, p.geometry.z as f32),
         ));
     }
 }
