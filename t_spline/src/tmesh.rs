@@ -275,7 +275,7 @@ impl<T: Numeric> TMesh<T> {
 
                         let dist = intersect_var - ray_start;
 
-                        if ((positive && dist > T::delta()) || (!positive && dist < T::delta()))
+                        if ((positive && dist > T::delta()) || (!positive && dist < -T::delta()))
                             && dist.abs() < closest_dist
                         {
                             closest_dist = dist.abs();

@@ -8,8 +8,8 @@ use t_spline_commands::tessellate::Tessellate;
 use anyhow::Result;
 
 fn main() -> Result<()> {
-    let spline: TSpline<f64> = TSpline::new_unit_square();
-    let points = Tessellate { resolution: 20 }.apply(&spline);
+    let spline: TSpline<f64> = TSpline::new_simple();
+    let points = Tessellate { resolution: 100 }.apply(&spline);
 
     App::new()
         .insert_resource(ClearColor(tailwind::BLUE_50.into()))
