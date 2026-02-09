@@ -3,6 +3,7 @@ name = "preview"
 version = "0.1.0"
 edition = "2024"
 publish = false
+license = "GPL-3"
 
 [dependencies]
 bevy = { version = "0.18.0", features = ["free_camera"]}

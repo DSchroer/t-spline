@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2026 Dominick Schroer
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+use anyhow::Result;
 use bevy::{
     camera_controller::free_camera::{FreeCamera, FreeCameraPlugin},
     color::palettes::tailwind,
@@ -5,7 +23,6 @@ use bevy::{
 };
 use t_spline::{Command, Point3, TSpline};
 use t_spline_commands::tessellate::Tessellate;
-use anyhow::Result;
 
 fn main() -> Result<()> {
     let spline: TSpline<f64> = TSpline::new_simple();
@@ -83,19 +100,34 @@ fn draw_control(
         commands.spawn((
             Mesh3d(control_mesh.clone()),
             MeshMaterial3d(control_mat.clone()),
-            Transform::from_xyz(p.geometry.x as f32, p.geometry.y as f32, p.geometry.z as f32),
+            Transform::from_xyz(
+                p.geometry.x as f32,
+                p.geometry.y as f32,
+                p.geometry.z as f32,
+            ),
         ));
     }
 }
 
-fn draw_cage(
-    render: Res<Render>,
-    mut gizmos: Gizmos
-) {
+fn draw_cage(render: Res<Render>, mut gizmos: Gizmos) {
     for e in &render.spline.mesh().edges {
         let from = render.spline.mesh().vertex(e.origin);
-        let to = render.spline.mesh().vertex(render.spline.mesh().edge(e.next).origin);
-        gizmos.line(Vec3::new(from.geometry.x as f32, from.geometry.y as f32, from.geometry.z as f32),
-                    Vec3::new(to.geometry.x as f32, to.geometry.y as f32, to.geometry.z as f32), tailwind::GREEN_500);
+        let to = render
+            .spline
+            .mesh()
+            .vertex(render.spline.mesh().edge(e.next).origin);
+        gizmos.line(
+            Vec3::new(
+                from.geometry.x as f32,
+                from.geometry.y as f32,
+                from.geometry.z as f32,
+            ),
+            Vec3::new(
+                to.geometry.x as f32,
+                to.geometry.y as f32,
+                to.geometry.z as f32,
+            ),
+            tailwind::GREEN_500,
+        );
     }
 }
