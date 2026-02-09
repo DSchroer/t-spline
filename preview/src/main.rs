@@ -4,22 +4,23 @@ use bevy::{
     prelude::*,
 };
 use t_spline::{Command, Point3, TSpline};
-use t_spline::tmesh::TMesh;
 use t_spline_commands::tessellate::Tessellate;
+use anyhow::Result;
 
-fn main() {
-    let mut spline: TSpline<f64> = TSpline::new_unit_square();
-    spline.apply_mut(&mut |m: &mut TMesh<f64>| m.vertices[0].geometry.z = 0.5);
-
-    let points = Tessellate { resolution: 50 }.apply(&spline);
+fn main() -> Result<()> {
+    let spline: TSpline<f64> = TSpline::new_unit_square();
+    let points = Tessellate { resolution: 20 }.apply(&spline);
 
     App::new()
         .insert_resource(ClearColor(tailwind::BLUE_50.into()))
         .insert_resource(Render { points, spline })
         .add_plugins(DefaultPlugins)
         .add_plugins(FreeCameraPlugin)
-        .add_systems(Startup, (setup, draw_points))
+        .add_systems(Startup, (setup, draw_points, draw_control))
+        .add_systems(Update, draw_cage)
         .run();
+
+    Ok(())
 }
 
 fn setup(mut commands: Commands) {
@@ -63,7 +64,14 @@ fn draw_points(
             Transform::from_xyz(p.x as f32, p.y as f32, p.z as f32),
         ));
     }
+}
 
+fn draw_control(
+    render: Res<Render>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
     let control_mesh = meshes.add(Sphere::new(0.05));
     let control_mat = materials.add(StandardMaterial {
         base_color: tailwind::AMBER_500.into(),
@@ -77,5 +85,17 @@ fn draw_points(
             MeshMaterial3d(control_mat.clone()),
             Transform::from_xyz(p.geometry.x as f32, p.geometry.y as f32, p.geometry.z as f32),
         ));
+    }
+}
+
+fn draw_cage(
+    render: Res<Render>,
+    mut gizmos: Gizmos
+) {
+    for e in &render.spline.mesh().edges {
+        let from = render.spline.mesh().vertex(e.origin);
+        let to = render.spline.mesh().vertex(render.spline.mesh().edge(e.next).origin);
+        gizmos.line(Vec3::new(from.geometry.x as f32, from.geometry.y as f32, from.geometry.z as f32),
+                    Vec3::new(to.geometry.x as f32, to.geometry.y as f32, to.geometry.z as f32), tailwind::GREEN_500);
     }
 }

@@ -56,29 +56,8 @@ impl<T: Numeric> TSpline<T> {
                 origin: VertID(i),
                 next: EdgeID((i + 1) % 4),
                 prev: EdgeID((i + 3) % 4),
-                twin: Some(EdgeID(i + 4)), // Outer edges are 4..8
+                twin: None,
                 face: Some(FaceID(0)),
-                knot_interval: 1.0,
-                direction: if i % 2 == 0 {
-                    Direction::S
-                } else {
-                    Direction::T
-                },
-            });
-        }
-
-        // 3. Define 4 outer Half-Edges in a CW loop
-        for i in 0..4 {
-            let origin_v_idx = (i + 1) % 4;
-            let next_outer_edge_idx = ((i + 3) % 4) + 4;
-            let prev_outer_edge_idx = ((i + 1) % 4) + 4;
-
-            mesh.edges.push(HalfEdge {
-                origin: VertID(origin_v_idx),
-                next: EdgeID(next_outer_edge_idx),
-                prev: EdgeID(prev_outer_edge_idx),
-                twin: Some(EdgeID(i)),
-                face: None,
                 knot_interval: 1.0,
                 direction: if i % 2 == 0 {
                     Direction::S

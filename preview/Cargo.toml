@@ -6,6 +6,7 @@ publish = false
 
 [dependencies]
 bevy = { version = "0.18.0", features = ["free_camera"]}
+anyhow = "1.0.101"
 t-spline = { path = "../t_spline" }
 t-spline-commands = { path = "../t_spline_commands" }
 
