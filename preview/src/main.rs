@@ -25,7 +25,7 @@ use t_spline::{Command, Point3, TSpline};
 use t_spline_commands::tessellate::Tessellate;
 
 fn main() -> Result<()> {
-    let spline: TSpline<f64> = TSpline::new_simple();
+    let spline: TSpline<f64> = TSpline::new_rounded_cube();
     let points = Tessellate { resolution: 100 }.apply(&spline);
 
     App::new()

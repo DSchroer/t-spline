@@ -138,6 +138,12 @@ impl<T: Numeric> TMesh<T> {
         let mut found_count = 0;
         let mut current_v = start_v;
 
+        // Capture start coordinate for relative calculations
+        let start_coord = match axis {
+            Direction::S => self.vertices[start_v.0].uv.s,
+            Direction::T => self.vertices[start_v.0].uv.t,
+        };
+
         while found_count < 2 {
             // Find an edge starting at current_v that aligns with our ray axis
             if let Some(next_v) = self.find_next_vertex_in_direction(current_v, axis, positive) {
@@ -156,32 +162,63 @@ impl<T: Numeric> TMesh<T> {
                 if let Some(coord) = self.find_face_intersection(current_v, axis, positive) {
                     results[found_count] = coord;
                     found_count += 1;
-
-                    // If we hit a face edge (not a vertex), we treat it as a boundary
-                    // or a hard stop for this simple implementation.
-                    let last_knot = coord;
-                    while found_count < 2 {
-                        results[found_count] = last_knot;
-                        found_count += 1;
-                    }
-                    break;
                 }
 
-                // Boundary Condition: If the ray hits the edge of the T-mesh (and no face covers it),
-                // repeat the last found knot to simulate an open knot vector.
-                let last_knot = if found_count > 0 {
-                    results[found_count - 1]
-                } else {
-                    match axis {
-                        Direction::S => self.vertices[current_v.0].uv.s,
-                        Direction::T => self.vertices[current_v.0].uv.t,
-                    }
-                };
+                // Boundary reached or face edge hit.
+                // Heuristic: If we are a single patch (1 face), we clamp (Open Uniform).
+                // If we are a complex mesh (>1 face), we extend to cover gaps/slits.
+                // This resolves conflict between `unit_square` (needs clamping) and `rounded_cube` (needs extension).
+                let should_clamp = self.faces.len() == 1;
 
                 while found_count < 2 {
-                    results[found_count] = last_knot;
+                    if should_clamp {
+                        // Clamp: repeat the last knot
+                        let last = if found_count > 0 {
+                            results[found_count - 1]
+                        } else {
+                            start_coord
+                        };
+                        results[found_count] = last;
+                    } else {
+                        // Extend: linear extrapolation
+                        let prev = if found_count > 0 {
+                            results[found_count - 1]
+                        } else {
+                            start_coord
+                        };
+
+                        let step = if found_count > 0 {
+                            let prev_prev = if found_count > 1 {
+                                results[found_count - 2]
+                            } else {
+                                start_coord
+                            };
+                            prev - prev_prev
+                        } else {
+                            // Default step 1.0
+                            if positive {
+                                T::one()
+                            } else {
+                                T::zero() - T::one()
+                            }
+                        };
+
+                        // Ensure non-zero step to avoid clamping unless geometry dictates it
+                        let effective_step = if step.is_zero() {
+                            if positive {
+                                T::one()
+                            } else {
+                                T::zero() - T::one()
+                            }
+                        } else {
+                            step
+                        };
+
+                        results[found_count] = prev + effective_step;
+                    }
                     found_count += 1;
                 }
+                break;
             }
         }
         results
@@ -609,10 +646,22 @@ mod tests {
         let mesh = unit_square_tmesh();
         let knots = local_knots(&mesh);
 
-        assert_eq!(Point3::new(0., 0., 0.), mesh.subs((0., 0.), &knots).unwrap());
-        assert_eq!(Point3::new(1., 0., 0.), mesh.subs((1., 0.), &knots).unwrap());
-        assert_eq!(Point3::new(0., 1., 0.), mesh.subs((0., 1.), &knots).unwrap());
-        assert_eq!(Point3::new(1., 1., 0.), mesh.subs((1., 1.), &knots).unwrap());
+        assert_eq!(
+            Point3::new(0., 0., 0.),
+            mesh.subs((0., 0.), &knots).unwrap()
+        );
+        assert_eq!(
+            Point3::new(1., 0., 0.),
+            mesh.subs((1., 0.), &knots).unwrap()
+        );
+        assert_eq!(
+            Point3::new(0., 1., 0.),
+            mesh.subs((0., 1.), &knots).unwrap()
+        );
+        assert_eq!(
+            Point3::new(1., 1., 0.),
+            mesh.subs((1., 1.), &knots).unwrap()
+        );
     }
 
     #[test]

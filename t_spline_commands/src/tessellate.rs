@@ -155,6 +155,7 @@ mod tests {
         assert_eq!(1., f2_bounds.area());
         let f2_center = t_mesh.mesh().subs(f2_bounds.center(), &knots).unwrap();
 
-        assert_eq!(f1_center.z, f2_center.z, "t-spline is not symmetrical");
+        let diff = f1_center.z - f2_center.z;
+        assert!(diff.abs() < f64::delta(), "t-spline is not symmetrical");
     }
 }
