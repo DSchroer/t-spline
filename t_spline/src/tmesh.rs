@@ -596,4 +596,30 @@ mod tests {
     pub fn unit_square_tmesh() -> TMesh<f64> {
         TSpline::new_unit_square().into_mesh()
     }
+
+    fn local_knots(mesh: &TMesh<f64>) -> Vec<LocalKnots<f64>> {
+        (0..mesh.vertices.len())
+            .map(|i| VertID(i))
+            .map(|v| mesh.infer_local_knots(v))
+            .collect()
+    }
+
+    #[test]
+    pub fn it_can_find_points_on_a_square() {
+        let mesh = unit_square_tmesh();
+        let knots = local_knots(&mesh);
+
+        assert_eq!(Point3::new(0., 0., 0.), mesh.subs((0., 0.), &knots).unwrap());
+        assert_eq!(Point3::new(1., 0., 0.), mesh.subs((1., 0.), &knots).unwrap());
+        assert_eq!(Point3::new(0., 1., 0.), mesh.subs((0., 1.), &knots).unwrap());
+        assert_eq!(Point3::new(1., 1., 0.), mesh.subs((1., 1.), &knots).unwrap());
+    }
+
+    #[test]
+    pub fn it_can_find_points_on_a_cube() {
+        let mesh = TSpline::new_rounded_cube().into_mesh();
+        let knots = local_knots(&mesh);
+
+        assert!(mesh.subs((0., 0.), &knots).is_some(), "cube has gaps");
+    }
 }
