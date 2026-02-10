@@ -134,10 +134,10 @@ impl TSpline<f64> {
         };
 
         // L (Face 0)
-        add_edge(0, 1, 3, None, 0, Direction::S); // 0
+        add_edge(0, 1, 3, Some(19), 0, Direction::S); // 0 (Twin 19)
         add_edge(1, 2, 0, Some(7), 0, Direction::T); // 1 (Twin 7)
-        add_edge(6, 3, 1, None, 0, Direction::S); // 2
-        add_edge(5, 0, 2, None, 0, Direction::T); // 3
+        add_edge(6, 3, 1, Some(23), 0, Direction::S); // 2 (Twin 23)
+        add_edge(5, 0, 2, Some(13), 0, Direction::T); // 3 (Twin 13)
 
         // F (Face 1)
         add_edge(1, 5, 7, Some(18), 1, Direction::S); // 4 (Twin 18)
@@ -146,28 +146,28 @@ impl TSpline<f64> {
         add_edge(6, 4, 6, Some(1), 1, Direction::T); // 7 (Twin 1)
 
         // R (Face 2)
-        add_edge(2, 9, 11, None, 2, Direction::S); // 8
+        add_edge(2, 9, 11, Some(17), 2, Direction::S); // 8 (Twin 17)
         add_edge(3, 10, 8, Some(15), 2, Direction::T); // 9 (Twin 15)
-        add_edge(8, 11, 9, None, 2, Direction::S); // 10
+        add_edge(8, 11, 9, Some(21), 2, Direction::S); // 10 (Twin 21)
         add_edge(7, 8, 10, Some(5), 2, Direction::T); // 11 (Twin 5)
 
         // B (Face 3)
-        add_edge(3, 13, 15, None, 3, Direction::S); // 12
-        add_edge(4, 14, 12, None, 3, Direction::T); // 13
-        add_edge(9, 15, 13, None, 3, Direction::S); // 14
+        add_edge(3, 13, 15, Some(16), 3, Direction::S); // 12 (Twin 16)
+        add_edge(4, 14, 12, Some(3), 3, Direction::T); // 13 (Twin 3)
+        add_edge(9, 15, 13, Some(22), 3, Direction::S); // 14 (Twin 22)
         add_edge(8, 12, 14, Some(9), 3, Direction::T); // 15 (Twin 9)
 
         // Bot (Face 4)
-        add_edge(10, 17, 19, None, 4, Direction::S); // 16
-        add_edge(11, 18, 16, None, 4, Direction::T); // 17
+        add_edge(10, 17, 19, Some(12), 4, Direction::S); // 16 (Twin 12)
+        add_edge(11, 18, 16, Some(8), 4, Direction::T); // 17 (Twin 8)
         add_edge(2, 19, 17, Some(4), 4, Direction::S); // 18 (Twin 4)
-        add_edge(1, 16, 18, None, 4, Direction::T); // 19
+        add_edge(1, 16, 18, Some(0), 4, Direction::T); // 19 (Twin 0)
 
         // Top (Face 5)
         add_edge(6, 21, 23, Some(6), 5, Direction::S); // 20 (Twin 6)
-        add_edge(7, 22, 20, None, 5, Direction::T); // 21
-        add_edge(13, 23, 21, None, 5, Direction::S); // 22
-        add_edge(12, 20, 22, None, 5, Direction::T); // 23
+        add_edge(7, 22, 20, Some(10), 5, Direction::T); // 21 (Twin 10)
+        add_edge(13, 23, 21, Some(14), 5, Direction::S); // 22 (Twin 14)
+        add_edge(12, 20, 22, Some(2), 5, Direction::T); // 23 (Twin 2)
 
         // Faces
         for i in 0..6 {
@@ -385,6 +385,10 @@ mod tests {
         assert_eq!(mesh.vertices.len(), 14, "Should have 14 vertices");
         assert_eq!(mesh.edges.len(), 24, "Should have 24 half-edges");
         assert_eq!(mesh.faces.len(), 6, "Should have 6 faces");
+
+        for e in mesh.edges.iter() {
+            assert!(e.twin.is_some(), "Should have twin");
+        }
 
         assert!(
             mesh.validate_asts(),
