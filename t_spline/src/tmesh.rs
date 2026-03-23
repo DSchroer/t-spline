@@ -40,7 +40,21 @@ pub struct TMesh<T> {
     pub faces: Vec<Face>,
 }
 
-pub type LocalKnots<T> = ([T; 5], [T; 5]);
+/// Two directional knot vectors for S & T directions.
+pub struct LocalKnots<T> {
+    pub s_knots: KnotVector<T>,
+    pub t_knots: KnotVector<T>,
+}
+
+/// A local knot vector consisting of 5 knots for a cubic T-spline.
+///
+/// In T-spline representations, each control point is associated with a local
+/// knot vector in both the `u` and `v` parametric directions. For a cubic basis
+/// function (degree 3), exactly 5 knots are required to evaluate the blending
+/// weights over its local support domain.
+///
+/// The knots are typically ordered such that $k_0 \le k_1 \le k_2 \le k_3 \le k_4$.
+pub type KnotVector<T> = [T; 5];
 
 impl<T> TMesh<T> {
     pub fn vertex(&self, id: VertID) -> &ControlPoint<T> {
@@ -103,11 +117,11 @@ impl<T> TMesh<T> {
 impl<T: Numeric> TMesh<T> {
     /// Infers the local knot vectors for a specific control point.
     /// Returns (s_vector, t_vector).
-    pub fn infer_local_knots(&self, v_id: VertID) -> ([T; 5], [T; 5]) {
+    pub fn infer_local_knots(&self, v_id: VertID) -> LocalKnots<T> {
         let s_knots = self.trace_local_knots(v_id, Direction::S);
         let t_knots = self.trace_local_knots(v_id, Direction::T);
 
-        (s_knots, t_knots)
+        LocalKnots { s_knots, t_knots }
     }
 
     fn trace_local_knots(&self, v_id: VertID, direction: Direction) -> [T; 5] {
@@ -584,7 +598,7 @@ impl<T: Numeric + 'static> TMesh<T> {
         let mut denominator = T::zero();
 
         for (i, vert) in self.vertices.iter().enumerate() {
-            let (s_knots, t_knots) = &knot_cache[i];
+            let LocalKnots { s_knots, t_knots } = &knot_cache[i];
 
             // Quick AABB check in parameter space
             if s < s_knots[0] || s > s_knots[4] || t < t_knots[0] || t > t_knots[4] {
@@ -625,7 +639,7 @@ mod tests {
     fn it_can_infer_local_knots() {
         let mesh = unit_square_tmesh();
 
-        let (s_knots, t_knots) = mesh.infer_local_knots(VertID(0));
+        let LocalKnots { s_knots, t_knots } = mesh.infer_local_knots(VertID(0));
         assert_eq!([0., 0., 0., 0., 1.], s_knots);
         assert_eq!([0., 0., 0., 0., 1.], t_knots);
     }
@@ -668,7 +682,25 @@ mod tests {
     pub fn it_can_find_points_on_a_cube() {
         let mesh = TSpline::new_rounded_cube().into_mesh();
         let knots = local_knots(&mesh);
+        let origin = Point3::origin();
 
-        assert!(mesh.subs((0., 0.), &knots).is_some(), "cube has gaps");
+        // All control points have values
+        let mut distances_from_origin = Vec::new();
+        for v in &mesh.vertices {
+            if let Some(p) = mesh.subs((v.uv.s, v.uv.t), &knots) {
+                distances_from_origin.push(nalgebra::distance(&origin, &p));
+            } else {
+                assert!(false, "cube has gaps");
+            }
+        }
+
+        // All corners are symmetrical
+        let first = distances_from_origin[0];
+        for d in &distances_from_origin {
+            assert!(
+                (first - d).abs() < f64::delta(),
+                "uniform control points have different distances from origin {d} in {distances_from_origin:?}"
+            );
+        }
     }
 }

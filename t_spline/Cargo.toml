@@ -17,4 +17,5 @@ num-traits = { version = "0.2.19", default-features = false }
 fixed = { version = "1.30.0", optional = true, features = ["num-traits"] }
 
 [dev-dependencies]
-fixed = { version = "1.30.0", features = ["num-traits"]}
+fixed = { version = "1.30.0", features = ["num-traits"] }
+nalgebra = { version = "*", features = ["std"] }

@@ -33,7 +33,10 @@ fn main() -> Result<()> {
         .insert_resource(Render { points, spline })
         .add_plugins(DefaultPlugins)
         .add_plugins(FreeCameraPlugin)
-        .add_systems(Startup, (setup, draw_points, draw_control))
+        .add_systems(
+            Startup,
+            (setup, draw_points, draw_control, draw_uv_controls),
+        )
         .add_systems(Update, draw_cage)
         .run();
 
@@ -59,6 +62,28 @@ fn setup(mut commands: Commands) {
 struct Render {
     points: Vec<Point3<f64>>,
     spline: TSpline<f64>,
+}
+
+fn draw_uv_controls(
+    render: Res<Render>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let point_mesh = meshes.add(Sphere::new(0.05));
+    let point_mat = materials.add(StandardMaterial {
+        base_color: tailwind::RED_500.into(),
+        unlit: true,
+        ..default()
+    });
+
+    for p in &render.spline.mesh().vertices {
+        commands.spawn((
+            Mesh3d(point_mesh.clone()),
+            MeshMaterial3d(point_mat.clone()),
+            Transform::from_xyz(p.uv.s as f32, p.uv.t as f32, 0. as f32),
+        ));
+    }
 }
 
 fn draw_points(
