@@ -25,7 +25,7 @@ use t_spline::{Command, Point3, TSpline};
 use t_spline_commands::tessellate::Tessellate;
 
 fn main() -> Result<()> {
-    let spline: TSpline<f64> = TSpline::new_rounded_cube();
+    let spline: TSpline<f64> = TSpline::new_unit_square();
     let points = Tessellate { resolution: 100 }.apply(&spline);
 
     App::new()
@@ -33,11 +33,7 @@ fn main() -> Result<()> {
         .insert_resource(Render { points, spline })
         .add_plugins(DefaultPlugins)
         .add_plugins(FreeCameraPlugin)
-        .add_systems(
-            Startup,
-            (setup, draw_points, draw_control, draw_uv_controls),
-        )
-        .add_systems(Update, draw_cage)
+        .add_systems(Startup, (setup, draw_points, draw_uv_controls))
         .run();
 
     Ok(())

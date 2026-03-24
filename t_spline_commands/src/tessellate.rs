@@ -43,7 +43,7 @@ impl Tessellate {
         resolution: usize,
         bounds: Bounds<T>,
         mesh: &TMesh<T>,
-        knot_cache: &[LocalKnots<T>],
+        knot_cache: &[LocalKnots],
     ) -> Vec<Point3<T>> {
         (0..resolution * resolution)
             .into_par_iter()
@@ -52,7 +52,7 @@ impl Tessellate {
             .collect()
     }
 
-    pub fn knot_vectors<T: Numeric + Send + Sync>(mesh: &TMesh<T>) -> Vec<LocalKnots<T>> {
+    pub fn knot_vectors<T: Numeric + Send + Sync>(mesh: &TMesh<T>) -> Vec<LocalKnots> {
         (0..mesh.vertices.len())
             .into_par_iter()
             .map(|v| mesh.infer_local_knots(VertID(v)))

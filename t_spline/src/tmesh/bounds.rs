@@ -83,11 +83,11 @@ impl<T: Numeric> Bounds<T> {
     }
 
     pub fn add_vertex(&mut self, point: &ControlPoint<T>) {
-        self.s.0 = self.s.0.min(point.uv.s);
-        self.s.1 = self.s.1.max(point.uv.s);
+        self.s.0 = self.s.0.min(T::from_isize(point.uv.s).unwrap());
+        self.s.1 = self.s.1.max(T::from_isize(point.uv.s).unwrap());
 
-        self.t.0 = self.t.0.min(point.uv.t);
-        self.t.1 = self.t.1.max(point.uv.t);
+        self.t.0 = self.t.0.min(T::from_isize(point.uv.t).unwrap());
+        self.t.1 = self.t.1.max(T::from_isize(point.uv.t).unwrap());
     }
 }
 

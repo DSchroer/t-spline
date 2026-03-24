@@ -4649,6 +4649,7 @@ dependencies = [
  "fixed",
  "nalgebra",
  "num-traits",
+ "smallvec",
 ]
 
 [[package]]

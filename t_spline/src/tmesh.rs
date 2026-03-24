@@ -29,9 +29,9 @@ use crate::tmesh::direction::Direction;
 use crate::tmesh::face::Face;
 use crate::tmesh::half_edge::HalfEdge;
 use crate::tmesh::ids::{EdgeID, FaceID, VertID};
-use crate::tmesh::segment::{ParamPoint, Segment};
 use alloc::vec::Vec;
-use nalgebra::{Point3, Vector4};
+use nalgebra::Point3;
+use smallvec::SmallVec;
 
 #[derive(Debug, Clone, Default)]
 pub struct TMesh<T> {
@@ -41,9 +41,10 @@ pub struct TMesh<T> {
 }
 
 /// Two directional knot vectors for S & T directions.
-pub struct LocalKnots<T> {
-    pub s_knots: KnotVector<T>,
-    pub t_knots: KnotVector<T>,
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LocalKnots {
+    pub s_knots: KnotVector,
+    pub t_knots: KnotVector,
 }
 
 /// A local knot vector consisting of 5 knots for a cubic T-spline.
@@ -54,7 +55,7 @@ pub struct LocalKnots<T> {
 /// weights over its local support domain.
 ///
 /// The knots are typically ordered such that $k_0 \le k_1 \le k_2 \le k_3 \le k_4$.
-pub type KnotVector<T> = [T; 5];
+pub type KnotVector = [isize; 5];
 
 impl<T> TMesh<T> {
     pub fn vertex(&self, id: VertID) -> &ControlPoint<T> {
@@ -83,48 +84,93 @@ impl<T> TMesh<T> {
         edges
     }
 
-    pub fn find_edge(&self, v_start: VertID, v_end: VertID) -> Option<EdgeID> {
-        let start_v = self.vertex(v_start);
-        let first_edge = start_v.outgoing_edge?;
+    pub fn next_edge(&self, edge: &HalfEdge) -> &HalfEdge {
+        &self.edge(edge.next)
+    }
 
-        // Circulate around vertex (using twin -> next logic)
-        let mut curr = first_edge;
+    pub fn connected_edges(&self, id: VertID) -> impl ExactSizeIterator<Item = EdgeID> {
+        let mut edges: SmallVec<[EdgeID; 4]> = SmallVec::with_capacity(4); // max 4
+
+        let start_edge_id = self.vertex(id).outgoing_edge;
+        let mut current_edge_id = start_edge_id;
+
+        // forward lookup
         loop {
-            let edge = self.edge(curr);
-            // The destination of an edge is the origin of its twin
-            // Or we can look at the origin of the 'next' edge if the face is valid
-            // Standard approach: dest(e) = origin(twin(e))
+            let edge = self.edge(current_edge_id);
+            edges.push(current_edge_id);
+
             if let Some(twin_id) = edge.twin {
                 let twin = self.edge(twin_id);
-                if twin.origin == v_end {
-                    return Some(curr);
-                }
-                // Move to next spoke: twin -> next
-                curr = twin.next;
-            } else {
-                // Boundary case handling needed here
-                break;
-            }
+                current_edge_id = twin.next;
 
-            if curr == first_edge {
+                // Back at start
+                if current_edge_id == start_edge_id {
+                    return edges.into_iter();
+                }
+            } else {
                 break;
             }
         }
-        None
+
+        // reverse lookup
+        current_edge_id = self.edge(start_edge_id).prev;
+        loop {
+            let edge = self.edge(current_edge_id);
+            edges.push(current_edge_id);
+
+            if let Some(twin_id) = edge.twin {
+                let twin = self.edge(twin_id);
+                current_edge_id = twin.prev;
+
+                // Back at start
+                if current_edge_id == start_edge_id {
+                    return edges.into_iter();
+                }
+            } else {
+                break;
+            }
+        }
+
+        edges.into_iter()
+    }
+
+    /// Loops around a vertex `id` and returns all verteces connected to it
+    pub fn connected_verteces(&self, id: VertID) -> impl ExactSizeIterator<Item = VertID> {
+        self.connected_edges(id).map(move |e| {
+            let edge = self.edge(e);
+            if edge.origin == id {
+                self.next_edge(edge).origin
+            } else {
+                edge.origin
+            }
+        })
+    }
+
+    /// Loops around a vertex `id` and returns all verteces connected to it
+    pub fn connected_faces(&self, id: VertID) -> impl ExactSizeIterator<Item = FaceID> {
+        self.connected_edges(id).map(move |e| {
+            let edge = self.edge(e);
+            edge.face
+        })
+    }
+
+    pub fn find_face(&self, id: VertID) -> FaceID {
+        let edge = self.vertices[id.0].outgoing_edge;
+        self.edges[edge.0].face
     }
 }
 
 impl<T: Numeric> TMesh<T> {
     /// Infers the local knot vectors for a specific control point.
     /// Returns (s_vector, t_vector).
-    pub fn infer_local_knots(&self, v_id: VertID) -> LocalKnots<T> {
+    pub fn infer_local_knots(&self, v_id: VertID) -> LocalKnots {
         let s_knots = self.trace_local_knots(v_id, Direction::S);
         let t_knots = self.trace_local_knots(v_id, Direction::T);
 
         LocalKnots { s_knots, t_knots }
     }
 
-    fn trace_local_knots(&self, v_id: VertID, direction: Direction) -> [T; 5] {
+    fn trace_local_knots(&self, v_id: VertID, direction: Direction) -> KnotVector {
         let v = self.vertex(v_id);
         let c = match direction {
             Direction::S => v.uv.s,
@@ -134,220 +180,60 @@ impl<T: Numeric> TMesh<T> {
         // Trace two knots in each of the four cardinal directions
         let pos = self.trace_knots(v_id, direction, true); // s3, s4
         let neg = self.trace_knots(v_id, direction, false); // s1, s0
-        let mut knots = [neg[1], neg[0], c, pos[0], pos[1]];
 
-        // Apply boundary shifts to ensure open knot vectors (multiplicity 4 at boundaries)
-        if neg[0] == c && neg[1] == c {
-            knots = [c, c, c, c, pos[1]];
-        } else if pos[0] == c && pos[1] == c {
-            knots = [neg[1], c, c, c, c];
-        }
+        // pad out c if n_0 or n_1 are not found
+        let n_0 = neg[0].unwrap_or(c);
+        let n_1 = neg[1].unwrap_or(n_0);
 
-        knots
+        // pad out c if p_0 or p_1 are not found
+        let p_0 = pos[0].unwrap_or(c);
+        let p_1 = pos[1].unwrap_or(p_0);
+
+        [n_1, n_0, c, p_0, p_1]
     }
 
     /// Traces a ray from start_v in a direction to find the next two orthogonal knots.
-    fn trace_knots(&self, start_v: VertID, axis: Direction, positive: bool) -> [T; 2] {
-        let mut results = [T::zero(); 2];
-        let mut found_count = 0;
-        let mut current_v = start_v;
+    fn trace_knots(&self, start_v: VertID, axis: Direction, positive: bool) -> [Option<isize>; 2] {
+        let mut results = [None; 2];
 
-        // Capture start coordinate for relative calculations
-        let start_coord = match axis {
-            Direction::S => self.vertices[start_v.0].uv.s,
-            Direction::T => self.vertices[start_v.0].uv.t,
-        };
+        // Find an edge starting at current_v that aligns with our ray axis
+        if let Some(next_v) = self.find_next_vertex_in_direction(start_v, axis, positive) {
+            // Rule 1: A knot is defined by the intersection with an 'orthogonal edge'.
+            // In a T-mesh, every vertex (including T-junctions) on the ray path
+            // provides a knot for the orthogonal dimension.[2]
+            results[0] = match axis {
+                Direction::S => self.vertices[next_v.0].uv.s,
+                Direction::T => self.vertices[next_v.0].uv.t,
+            }
+            .into();
 
-        while found_count < 2 {
-            // Find an edge starting at current_v that aligns with our ray axis
-            if let Some(next_v) = self.find_next_vertex_in_direction(current_v, axis, positive) {
-                current_v = next_v;
-
+            if let Some(final_v) = self.find_next_vertex_in_direction(next_v, axis, positive) {
                 // Rule 1: A knot is defined by the intersection with an 'orthogonal edge'.
                 // In a T-mesh, every vertex (including T-junctions) on the ray path
                 // provides a knot for the orthogonal dimension.[2]
-                results[found_count] = match axis {
-                    Direction::S => self.vertices[current_v.0].uv.s,
-                    Direction::T => self.vertices[current_v.0].uv.t,
-                };
-                found_count += 1;
-            } else {
+                results[1] = match axis {
+                    Direction::S => self.vertices[final_v.0].uv.s,
+                    Direction::T => self.vertices[final_v.0].uv.t,
+                }
+                .into();
+
                 // Fallback: Check if the ray passes through a face and hits an edge
-                if let Some(coord) = self.find_face_intersection(current_v, axis, positive) {
-                    results[found_count] = coord;
-                    found_count += 1;
-                }
-
-                // Boundary reached or face edge hit.
-                // Heuristic: If we are a single patch (1 face), we clamp (Open Uniform).
-                // If we are a complex mesh (>1 face), we extend to cover gaps/slits.
-                // This resolves conflict between `unit_square` (needs clamping) and `rounded_cube` (needs extension).
-                let should_clamp = self.faces.len() == 1;
-
-                while found_count < 2 {
-                    if should_clamp {
-                        // Clamp: repeat the last knot
-                        let last = if found_count > 0 {
-                            results[found_count - 1]
-                        } else {
-                            start_coord
-                        };
-                        results[found_count] = last;
-                    } else {
-                        // Extend: linear extrapolation
-                        let prev = if found_count > 0 {
-                            results[found_count - 1]
-                        } else {
-                            start_coord
-                        };
-
-                        let step = if found_count > 0 {
-                            let prev_prev = if found_count > 1 {
-                                results[found_count - 2]
-                            } else {
-                                start_coord
-                            };
-                            prev - prev_prev
-                        } else {
-                            // Default step 1.0
-                            if positive {
-                                T::one()
-                            } else {
-                                T::zero() - T::one()
-                            }
-                        };
-
-                        // Ensure non-zero step to avoid clamping unless geometry dictates it
-                        let effective_step = if step.is_zero() {
-                            if positive {
-                                T::one()
-                            } else {
-                                T::zero() - T::one()
-                            }
-                        } else {
-                            step
-                        };
-
-                        results[found_count] = prev + effective_step;
-                    }
-                    found_count += 1;
-                }
-                break;
             }
+            // else if let Some(coord) = self.find_face_intersection(next_v, axis, positive) {
+            //     *slot = coord.into();
+            // }
+
+            // Fallback: Check if the ray passes through a face and hits an edge
         }
+        // else if let Some(coord) = self.find_face_intersection(start_v, axis, positive) {
+        //     *slot = coord.into();
+
+        //     if let Some(coord) = self.find_face_intersection(next_v, axis, positive) {
+        //         *slot = coord.into();
+        //     }
+        // }
+
         results
-    }
-
-    /// Searches for an intersection with any edge of the faces incident to `start_v`
-    /// along the specified ray.
-    fn find_face_intersection(
-        &self,
-        start_v: VertID,
-        axis: Direction,
-        positive: bool,
-    ) -> Option<T> {
-        let v = &self.vertices[start_v.0];
-        let start_edge = v.outgoing_edge?;
-        let mut curr_spoke = start_edge;
-
-        let mut closest_dist = T::max_value();
-        let mut found_coord = None;
-
-        // Iterate over all incident faces
-        loop {
-            let spoke_edge = &self.edges[curr_spoke.0];
-
-            if let Some(face_id) = spoke_edge.face {
-                // Iterate edges of this face
-                let face_edges = self.face_edges(face_id);
-                for &edge_id in &face_edges {
-                    let edge = &self.edges[edge_id.0];
-                    let p1 = &self.vertices[edge.origin.0].uv;
-                    // Actually, robust way to get p2:
-                    let p2 = if let Some(twin) = edge.twin {
-                        &self.vertices[self.edges[twin.0].origin.0].uv
-                    } else {
-                        // If no twin, find vertex that 'next' points to?
-                        // Actually 'next' starts at p2. So:
-                        &self.vertices[self.edges[edge.next.0].origin.0].uv
-                    };
-
-                    // Check intersection
-                    // Ray: constant component = v.uv.{other}, variable component > v.uv.{axis}
-                    // Edge: p1 to p2
-
-                    let (ray_const, ray_start) = match axis {
-                        Direction::S => (v.uv.t, v.uv.s),
-                        Direction::T => (v.uv.s, v.uv.t),
-                    };
-
-                    let (e_p1_const, e_p1_var) = match axis {
-                        Direction::S => (p1.t, p1.s),
-                        Direction::T => (p1.s, p1.t),
-                    };
-                    let (e_p2_const, e_p2_var) = match axis {
-                        Direction::S => (p2.t, p2.s),
-                        Direction::T => (p2.s, p2.t),
-                    };
-
-                    // Check if edge spans across the ray constant
-                    // Careful with floating point epsilon
-                    let min_c = if e_p1_const <= e_p2_const {
-                        e_p1_const
-                    } else {
-                        e_p2_const
-                    };
-                    let max_c = if e_p1_const >= e_p2_const {
-                        e_p1_const
-                    } else {
-                        e_p2_const
-                    };
-
-                    if ray_const >= min_c - T::delta() && ray_const <= max_c + T::delta() {
-                        // Edge crosses or touches the ray line.
-                        // But we must exclude the start vertex itself (which is p1 or p2)
-                        // Distance check handles this if we ensure dist > epsilon
-
-                        // Intersection calculation (linear interpolation)
-                        // C = p1.c + t * (p2.c - p1.c) => t = (C - p1.c) / (p2.c - p1.c)
-                        // Var = p1.v + t * (p2.v - p1.v)
-
-                        let intersect_var = if (e_p2_const - e_p1_const).abs() < T::delta() {
-                            // Edge is parallel to ray? Then it must be collinear.
-                            // If collinear, we pick the point closest to ray_start but > ray_start
-                            // This case usually handled by find_next_vertex_in_direction, but
-                            // if that failed, maybe we found a detached edge? Unlikely in valid mesh.
-                            // Ignore parallel edges in this fallback.
-                            continue;
-                        } else {
-                            let t = (ray_const - e_p1_const) / (e_p2_const - e_p1_const);
-                            e_p1_var + t * (e_p2_var - e_p1_var)
-                        };
-
-                        let dist = intersect_var - ray_start;
-
-                        if ((positive && dist > T::delta()) || (!positive && dist < -T::delta()))
-                            && dist.abs() < closest_dist
-                        {
-                            closest_dist = dist.abs();
-                            found_coord = Some(intersect_var);
-                        }
-                    }
-                }
-            }
-
-            // Next spoke
-            if let Some(twin_id) = spoke_edge.twin {
-                curr_spoke = self.edges[twin_id.0].next;
-            } else {
-                break;
-            }
-            if curr_spoke == start_edge {
-                break;
-            }
-        }
-
-        found_coord
     }
 
     /// Helper to find the next vertex along the mesh edges in a specific direction.
@@ -357,182 +243,26 @@ impl<T: Numeric> TMesh<T> {
         axis: Direction,
         positive: bool,
     ) -> Option<VertID> {
-        let v = &self.vertices[v_id.0];
-        let start_edge = v.outgoing_edge?;
-        let mut curr_e_id = start_edge;
+        let v = self.vertex(v_id);
+        for vertex in self.connected_verteces(v_id) {
+            let dest_v = &self.vertex(vertex);
 
-        loop {
-            let edge = &self.edges[curr_e_id.0];
-            let dest_id = self.edges[edge.twin?.0].origin;
-            let dest_v = &self.vertices[dest_id.0];
-
-            // Calculate parametric delta
             let delta = match axis {
                 Direction::S => dest_v.uv.s - v.uv.s,
                 Direction::T => dest_v.uv.t - v.uv.t,
             };
 
-            // Check if the edge is collinear with the search axis
             let is_collinear = match axis {
-                Direction::S => (dest_v.uv.t - v.uv.t).abs() < T::delta(),
-                Direction::T => (dest_v.uv.s - v.uv.s).abs() < T::delta(),
+                Direction::S => dest_v.uv.t == v.uv.t,
+                Direction::T => dest_v.uv.s == v.uv.s,
             };
 
-            if is_collinear
-                && ((positive && delta > T::delta()) || (!positive && delta < -T::delta()))
-            {
-                return Some(dest_id);
-            }
-
-            // Circulate to the next outgoing edge at this vertex
-            curr_e_id = self.edges[edge.prev.0].twin?;
-            if curr_e_id == start_edge {
-                break;
+            if is_collinear && ((positive && delta > 0) || (!positive && delta < 0)) {
+                return Some(vertex);
             }
         }
+
         None
-    }
-
-    /// Casts a ray in `direction` for `steps` topological units.
-    /// Returns the coordinate found.
-    fn cast_ray_for_knot(&self, start_v: VertID, dir: Direction, steps: i32) -> T {
-        let mut curr_v = start_v;
-        let is_forward = steps > 0;
-        let count = steps.abs();
-
-        for _ in 0..count {
-            match self.find_next_orthogonal_edge(curr_v, dir, is_forward) {
-                Some(next_v) => {
-                    curr_v = next_v;
-                }
-                None => {
-                    // Boundary reached.
-                    // Standard T-Spline rule: extend the last interval or repeat knot.
-                    // Here we simply return the boundary coordinate.
-                    // A more robust impl would repeat the boundary knot if steps remain.
-                    return match dir {
-                        Direction::S => self.vertex(curr_v).uv.s,
-                        Direction::T => self.vertex(curr_v).uv.t,
-                    };
-                }
-            }
-        }
-
-        match dir {
-            Direction::S => self.vertex(curr_v).uv.s,
-            Direction::T => self.vertex(curr_v).uv.t,
-        }
-    }
-
-    /// Finds the next vertex connected by an edge in the given direction.
-    /// This abstracts the topology navigation.
-    fn find_next_orthogonal_edge(
-        &self,
-        v: VertID,
-        dir: Direction,
-        forward: bool,
-    ) -> Option<VertID> {
-        let start_edge = self.vertex(v).outgoing_edge?;
-        let mut curr = start_edge;
-
-        // Circulate to find edge aligned with direction
-        loop {
-            let edge = self.edge(curr);
-
-            // Check alignment. This assumes edges store their parametric direction.
-            // In a real implementation, we might check the geometry of the UVs.
-            let is_aligned = edge.direction == dir;
-
-            // "Forward" in S means increasing S.
-            // We need to check geometry or explicit flags.
-            // Simplified logic: assume edges are directed.
-            let geometry_delta = if let Some(twin) = edge.twin {
-                let dest = self.edge(twin).origin;
-                let uv_dest = self.vertex(dest).uv;
-                let uv_src = self.vertex(edge.origin).uv;
-                match dir {
-                    Direction::S => uv_dest.s - uv_src.s,
-                    Direction::T => uv_dest.t - uv_src.t,
-                }
-            } else {
-                T::zero()
-            };
-
-            if is_aligned
-                && ((forward && geometry_delta > T::zero())
-                    || (!forward && geometry_delta < T::zero()))
-            {
-                return edge.twin.map(|id| self.edge(id).origin);
-            }
-
-            // Move to next spoke
-            if let Some(twin) = edge.twin {
-                curr = self.edge(twin).next;
-            } else {
-                break;
-            }
-            if curr == start_edge {
-                break;
-            }
-        }
-        None
-    }
-
-    // Validates if the current mesh satisfies ASTS conditions.
-    pub fn validate_asts(&self) -> bool {
-        let h_exts = self.collect_extensions(Direction::S);
-        let v_exts = self.collect_extensions(Direction::T);
-
-        for h in &h_exts {
-            for v in &v_exts {
-                if h.intersects(v) {
-                    return false; // Intersection detected!
-                }
-            }
-        }
-        true
-    }
-
-    fn collect_extensions(&self, dir: Direction) -> Vec<Segment<T>> {
-        let mut extensions = Vec::new();
-
-        for (idx, vert) in self.vertices.iter().enumerate() {
-            if !vert.is_t_junction {
-                continue;
-            }
-
-            // Check if T-junction points in 'dir'
-            // A T-junction "points" into the face it is missing an edge for.
-            // We need logic to determine orientation of the T.
-
-            if self.t_junction_orientation(VertID(idx)) == dir {
-                // Trace ray until it hits a perpendicular full edge
-                let start_uv = vert.uv;
-                let end_val = self.cast_ray_for_knot(VertID(idx), dir, 2); // heuristic distance
-                // Real ASTS tracing must go until it hits a line in the T-mesh
-                // that is perpendicular to the extension.
-
-                let end_uv = match dir {
-                    Direction::S => ParamPoint {
-                        s: end_val,
-                        t: start_uv.t,
-                    },
-                    Direction::T => ParamPoint {
-                        s: start_uv.s,
-                        t: end_val,
-                    },
-                };
-                extensions.push(Segment {
-                    start: start_uv,
-                    end: end_uv,
-                });
-            }
-        }
-        extensions
-    }
-
-    fn t_junction_orientation(&self, v: VertID) -> Direction {
-        self.edge(self.vertex(v).outgoing_edge.unwrap()).direction
     }
 }
 
@@ -541,27 +271,15 @@ impl<T: Numeric> TMesh<T> {
 /// # Arguments
 /// * `u` - The parameter value to evaluate.
 /// * `knots` - A local knot vector of length 5: [u_i, u_{i+1}, u_{i+2}, u_{i+3}, u_{i+4}].
-pub fn cubic_basis_function<T: Numeric>(u: T, knots: &[T; 5]) -> T {
-    // 1. Boundary check for the support [u_i, u_{i+4}]
-    // Basis functions are non-zero only within their knot spans.
-    if u < knots[0] || u > knots[4] {
-        return T::zero();
-    }
-
-    // Clamp u to be strictly inside the support for the half-open interval logic,
-    // effectively taking the limit from the left at the boundary.
-    let u = if u == knots[4] {
-        knots[4] - T::delta()
-    } else {
-        u
-    };
+pub fn cubic_basis_function<T: Numeric>(u: T, knots: &[isize; 5]) -> T {
+    let knots = |i| T::from_isize(knots[i]).unwrap();
 
     // 2. Initialize the 0th degree basis (step functions)
     // There are 4 intervals defined by 5 knots.
     let mut n = [T::zero(); 4];
     for i in 0..4 {
         // Standard half-open interval check [t_i, t_{i+1})
-        if u >= knots[i] && u < knots[i + 1] {
+        if u >= knots(i) && u < knots(i + 1) {
             n[i] = T::one();
         }
     }
@@ -573,15 +291,15 @@ pub fn cubic_basis_function<T: Numeric>(u: T, knots: &[T; 5]) -> T {
             let mut val = T::zero();
 
             // Left term: ((u - u_i) / (u_{i+p} - u_i)) * N_{i, p-1}(u)
-            let den1 = knots[i + p] - knots[i];
+            let den1 = knots(i + p) - knots(i);
             if den1 != T::zero() {
-                val += ((u - knots[i]) / den1) * n[i];
+                val += ((u - knots(i)) / den1) * n[i];
             }
 
             // Right term: ((u_{i+p+1} - u) / (u_{i+p+1} - u_{i+1})) * N_{i+1, p-1}(u)
-            let den2 = knots[i + p + 1] - knots[i + 1];
+            let den2 = knots(i + p + 1) - knots(i + 1);
             if den2 != T::zero() {
-                val += ((knots[i + p + 1] - u) / den2) * n[i + 1];
+                val += ((knots(i + p + 1) - u) / den2) * n[i + 1];
             }
 
             n[i] = val;
@@ -593,39 +311,53 @@ pub fn cubic_basis_function<T: Numeric>(u: T, knots: &[T; 5]) -> T {
 }
 
 impl<T: Numeric + 'static> TMesh<T> {
-    pub fn subs(&self, (s, t): (T, T), knot_cache: &[LocalKnots<T>]) -> Option<Point3<T>> {
-        let mut numerator = Vector4::new(T::zero(), T::zero(), T::zero(), T::zero());
-        let mut denominator = T::zero();
+    pub fn subs(&self, (s, t): (T, T), knot_cache: &[LocalKnots]) -> Option<Point3<T>> {
+        let mut point_sum: Point3<T> = Point3::origin();
+        let mut weight_sum = T::zero();
 
-        for (i, vert) in self.vertices.iter().enumerate() {
-            let LocalKnots { s_knots, t_knots } = &knot_cache[i];
+        for (i, vertex) in self.vertices.iter().enumerate() {
+            // 1. Evaluate the 1D basis functions for s and t
+            let n_s = cubic_basis_function(s, &knot_cache[i].s_knots);
+            let n_t = cubic_basis_function(t, &knot_cache[i].t_knots);
 
-            // Quick AABB check in parameter space
-            if s < s_knots[0] || s > s_knots[4] || t < t_knots[0] || t > t_knots[4] {
-                continue;
+            // 2. The 2D basis function B_i(s, t) is the product of the 1D functions
+            let b_i = n_s * n_t;
+
+            // Skip calculations if this control point doesn't influence (s, t)
+            if b_i > T::zero() {
+                // 2. Multiply the basis function by the point's weight w_i
+                let rational_weight = b_i * vertex.geometry.w;
+
+                // 3. Accumulate the weighted point sum (Numerator of Eq. 1)
+                point_sum.x += vertex.geometry.x * b_i * rational_weight;
+                point_sum.y += vertex.geometry.y * b_i * rational_weight;
+                point_sum.z += vertex.geometry.z * b_i * rational_weight;
+
+                // 4. Accumulate the total weight (Denominator of Eq. 1)
+                weight_sum += rational_weight;
             }
-
-            let basis_s = cubic_basis_function(s, s_knots);
-            let basis_t = cubic_basis_function(t, t_knots);
-            let basis = basis_s * basis_t * vert.geometry.w;
-
-            numerator += vert.geometry * basis;
-            denominator += basis;
         }
 
-        if denominator == T::zero() {
-            return None;
+        // 5. Divide by the sum of weights to get the final rational point
+        if weight_sum > T::zero() {
+            Some(Point3::new(
+                point_sum.x / weight_sum,
+                point_sum.y / weight_sum,
+                point_sum.z / weight_sum,
+            ))
+        } else {
+            // (s, t) is outside the defined domain of the entire surface
+            None
         }
-
-        let result_homo = numerator.map(|f| f / denominator);
-        Some(Point3::new(result_homo.x, result_homo.y, result_homo.z))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use nalgebra::{Point4, Vector4};
+
     use super::*;
-    use crate::TSpline;
+    use crate::{TSpline, tmesh::segment::ParamPoint};
 
     #[test]
     fn it_finds_face_edges() {
@@ -636,19 +368,103 @@ mod tests {
     }
 
     #[test]
+    fn it_finds_connected_verteces() {
+        let mesh = TSpline::new_t_junction().into_mesh();
+        let v = mesh
+            .vertices
+            .iter()
+            .enumerate()
+            .find_map(|(i, v)| {
+                if v.is_t_junction {
+                    Some(VertID(i))
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+
+        assert_eq!(3, mesh.connected_verteces(v).len());
+    }
+
+    #[test]
+    fn it_finds_connected_verteces_with_boundaries() {
+        let mesh = unit_square_tmesh();
+
+        assert_eq!(2, mesh.connected_verteces(VertID(0)).len());
+    }
+
+    #[test]
+    fn it_finds_vertex_in_direction() {
+        let mesh = unit_square_tmesh();
+
+        assert_eq!(
+            Some(VertID(1)),
+            mesh.find_next_vertex_in_direction(VertID(0), Direction::S, true)
+        );
+
+        assert_eq!(
+            Some(VertID(1)),
+            mesh.find_next_vertex_in_direction(VertID(2), Direction::T, false)
+        );
+
+        assert_eq!(
+            Some(VertID(3)),
+            mesh.find_next_vertex_in_direction(VertID(0), Direction::T, true)
+        );
+
+        assert_eq!(
+            Some(VertID(3)),
+            mesh.find_next_vertex_in_direction(VertID(2), Direction::S, false)
+        );
+    }
+
+    #[test]
+    fn it_can_trace_direct_knots() {
+        let mesh = unit_square_tmesh();
+
+        let trace = mesh.trace_knots(VertID(0), Direction::S, true);
+        assert_eq!([Some(1), None], trace);
+    }
+
+    #[test]
     fn it_can_infer_local_knots() {
         let mesh = unit_square_tmesh();
 
-        let LocalKnots { s_knots, t_knots } = mesh.infer_local_knots(VertID(0));
-        assert_eq!([0., 0., 0., 0., 1.], s_knots);
-        assert_eq!([0., 0., 0., 0., 1.], t_knots);
+        assert_eq!(
+            LocalKnots {
+                s_knots: [0, 0, 0, 1, 1],
+                t_knots: [0, 0, 0, 1, 1],
+            },
+            mesh.infer_local_knots(VertID(0))
+        );
+        assert_eq!(
+            LocalKnots {
+                s_knots: [0, 0, 1, 1, 1],
+                t_knots: [0, 0, 0, 1, 1],
+            },
+            mesh.infer_local_knots(VertID(1))
+        );
+        assert_eq!(
+            LocalKnots {
+                s_knots: [0, 0, 0, 1, 1],
+                t_knots: [0, 0, 1, 1, 1],
+            },
+            mesh.infer_local_knots(VertID(3))
+        );
+        assert_eq!(
+            LocalKnots {
+                s_knots: [0, 0, 1, 1, 1],
+                t_knots: [0, 0, 1, 1, 1],
+            },
+            mesh.infer_local_knots(VertID(2))
+        );
     }
 
     pub fn unit_square_tmesh() -> TMesh<f64> {
         TSpline::new_unit_square().into_mesh()
     }
 
-    fn local_knots(mesh: &TMesh<f64>) -> Vec<LocalKnots<f64>> {
+    fn local_knots(mesh: &TMesh<f64>) -> Vec<LocalKnots> {
         (0..mesh.vertices.len())
             .map(|i| VertID(i))
             .map(|v| mesh.infer_local_knots(v))
@@ -687,7 +503,7 @@ mod tests {
         // All control points have values
         let mut distances_from_origin = Vec::new();
         for v in &mesh.vertices {
-            if let Some(p) = mesh.subs((v.uv.s, v.uv.t), &knots) {
+            if let Some(p) = mesh.subs((v.uv.s as f64, v.uv.t as f64), &knots) {
                 distances_from_origin.push(nalgebra::distance(&origin, &p));
             } else {
                 assert!(false, "cube has gaps");
@@ -702,5 +518,26 @@ mod tests {
                 "uniform control points have different distances from origin {d} in {distances_from_origin:?}"
             );
         }
+    }
+
+    #[test]
+    fn test_cubic_basis_function_uniform_knots() {
+        let knots = [0, 1, 2, 3, 4];
+
+        assert_eq!(0.0, cubic_basis_function(0.0, &knots));
+        assert_eq!(0.0, cubic_basis_function(4.0, &knots));
+
+        assert!((cubic_basis_function(1.0_f64, &knots) - 1.0 / 6.0).abs() < 1e-6);
+        assert!((cubic_basis_function(3.0_f64, &knots) - 1.0 / 6.0).abs() < 1e-6);
+        assert!((cubic_basis_function(2.0_f64, &knots) - 2.0 / 3.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_cubic_basis_function_bezier_left_boundary() {
+        let knots = [0, 0, 0, 0, 1];
+
+        assert!((cubic_basis_function(0.0_f64, &knots) - 1.0).abs() < 1e-6);
+        assert!((cubic_basis_function(0.5_f64, &knots) - 0.125).abs() < 1e-6);
+        assert_eq!(0.0, cubic_basis_function(1.0, &knots));
     }
 }

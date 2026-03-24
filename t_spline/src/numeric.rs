@@ -16,10 +16,19 @@
  */
 
 use core::fmt::{Debug, Display};
-use num_traits::{Bounded, FromPrimitive, Num, NumAssign, Signed};
+use num_traits::{Bounded, FromPrimitive, Num, NumAssign, Signed, ToPrimitive};
 
 pub trait Numeric:
-    Num + Copy + PartialOrd + Signed + NumAssign + Debug + Display + Bounded + FromPrimitive
+    Num
+    + Copy
+    + PartialOrd
+    + Signed
+    + NumAssign
+    + Debug
+    + Display
+    + Bounded
+    + ToPrimitive
+    + FromPrimitive
 {
     fn max(self, other: Self) -> Self {
         if self > other { self } else { other }
