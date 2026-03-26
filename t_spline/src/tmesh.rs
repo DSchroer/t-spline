@@ -266,6 +266,17 @@ pub fn cubic_basis_function<T: Numeric>(u: T, knots: &[isize; 5]) -> T {
         }
     }
 
+    // Handle right endpoint: u == last knot is excluded by half-open intervals.
+    // Activate the last nonzero-span interval, treating the boundary as closed.
+    if u == knots(4) {
+        for i in (0..4).rev() {
+            if knots(i) < knots(i + 1) {
+                n[i] = T::one();
+                break;
+            }
+        }
+    }
+
     // 3. Iteratively calculate higher degrees up to degree 3
     for p in 1..=3 {
         // In each degree layer, we calculate (4 - p) basis functions
@@ -311,9 +322,9 @@ impl<T: Numeric + 'static> TMesh<T> {
                 let rational_weight = b_i * vertex.geometry.w;
 
                 // 3. Accumulate the weighted point sum (Numerator of Eq. 1)
-                point_sum.x += vertex.geometry.x * b_i * rational_weight;
-                point_sum.y += vertex.geometry.y * b_i * rational_weight;
-                point_sum.z += vertex.geometry.z * b_i * rational_weight;
+                point_sum.x += vertex.geometry.x * rational_weight;
+                point_sum.y += vertex.geometry.y * rational_weight;
+                point_sum.z += vertex.geometry.z * rational_weight;
 
                 // 4. Accumulate the total weight (Denominator of Eq. 1)
                 weight_sum += rational_weight;
@@ -336,10 +347,8 @@ impl<T: Numeric + 'static> TMesh<T> {
 
 #[cfg(test)]
 mod tests {
-    use nalgebra::{Point4, Vector4};
-
     use super::*;
-    use crate::{TSpline, tmesh::segment::ParamPoint};
+    use crate::{TSpline};
 
     #[test]
     fn it_finds_face_edges() {
@@ -476,31 +485,31 @@ mod tests {
         );
     }
 
-    // #[test]
-    // pub fn it_can_find_points_on_a_cube() {
-    //     let mesh = TSpline::new_rounded_cube().into_mesh();
-    //     let knots = local_knots(&mesh);
-    //     let origin = Point3::origin();
+    #[test]
+    pub fn it_can_find_points_on_a_cube() {
+        let mesh = TSpline::new_rounded_cube().into_mesh();
+        let knots = local_knots(&mesh);
+        let origin = Point3::origin();
 
-    //     // All control points have values
-    //     let mut distances_from_origin = Vec::new();
-    //     for v in &mesh.vertices {
-    //         if let Some(p) = mesh.subs((v.uv.s as f64, v.uv.t as f64), &knots) {
-    //             distances_from_origin.push(nalgebra::distance(&origin, &p));
-    //         } else {
-    //             assert!(false, "cube has gaps");
-    //         }
-    //     }
+        // All control points have values
+        let mut distances_from_origin = Vec::new();
+        for v in &mesh.vertices {
+            if let Some(p) = mesh.subs((v.uv.s as f64, v.uv.t as f64), &knots) {
+                distances_from_origin.push(nalgebra::distance(&origin, &p));
+            } else {
+                assert!(false, "cube has gaps");
+            }
+        }
 
-    //     // All corners are symmetrical
-    //     let first = distances_from_origin[0];
-    //     for d in &distances_from_origin {
-    //         assert!(
-    //             (first - d).abs() < f64::delta(),
-    //             "uniform control points have different distances from origin {d} in {distances_from_origin:?}"
-    //         );
-    //     }
-    // }
+        // All corners are symmetrical
+        let first = distances_from_origin[0];
+        for d in &distances_from_origin {
+            assert!(
+                (first - d).abs() < f64::delta(),
+                "uniform control points have different distances from origin {d} in {distances_from_origin:?}"
+            );
+        }
+    }
 
     #[test]
     fn test_cubic_basis_function_uniform_knots() {

@@ -125,40 +125,40 @@ impl TSpline<f64> {
             };
 
         // L (Face 0)
-        add_edge(0, 1, 3, Some(19), 0); // 0 (Twin 19)
-        add_edge(1, 2, 0, Some(7), 0); // 1 (Twin 7)
-        add_edge(6, 3, 1, Some(23), 0); // 2 (Twin 23)
-        add_edge(5, 0, 2, Some(13), 0); // 3 (Twin 13)
+        add_edge(0, 1, 3, None, 0);      // 0  boundary
+        add_edge(1, 2, 0, Some(7), 0);   // 1  (Twin 7)  L-F shared
+        add_edge(6, 3, 1, None, 0);      // 2  boundary
+        add_edge(5, 0, 2, None, 0);      // 3  boundary
 
         // F (Face 1)
-        add_edge(1, 5, 7, Some(18), 1); // 4 (Twin 18)
-        add_edge(2, 6, 4, Some(11), 1); // 5 (Twin 11)
-        add_edge(7, 7, 5, Some(20), 1); // 6 (Twin 20)
-        add_edge(6, 4, 6, Some(1), 1); // 7 (Twin 1)
+        add_edge(1, 5, 7, Some(18), 1);  // 4  (Twin 18) F-Bot shared
+        add_edge(2, 6, 4, Some(11), 1);  // 5  (Twin 11) F-R shared
+        add_edge(7, 7, 5, Some(20), 1);  // 6  (Twin 20) F-Top shared
+        add_edge(6, 4, 6, Some(1), 1);   // 7  (Twin 1)  F-L shared
 
         // R (Face 2)
-        add_edge(2, 9, 11, Some(17), 2); // 8 (Twin 17)
-        add_edge(3, 10, 8, Some(15), 2); // 9 (Twin 15)
-        add_edge(8, 11, 9, Some(21), 2); // 10 (Twin 21)
-        add_edge(7, 8, 10, Some(5), 2); // 11 (Twin 5)
+        add_edge(2, 9, 11, None, 2);     // 8  boundary
+        add_edge(3, 10, 8, Some(15), 2); // 9  (Twin 15) R-B shared
+        add_edge(8, 11, 9, None, 2);     // 10 boundary
+        add_edge(7, 8, 10, Some(5), 2);  // 11 (Twin 5)  R-F shared
 
         // B (Face 3)
-        add_edge(3, 13, 15, Some(16), 3); // 12 (Twin 16)
-        add_edge(4, 14, 12, Some(3), 3); // 13 (Twin 3)
-        add_edge(9, 15, 13, Some(22), 3); // 14 (Twin 22)
-        add_edge(8, 12, 14, Some(9), 3); // 15 (Twin 9)
+        add_edge(3, 13, 15, None, 3);    // 12 boundary
+        add_edge(4, 14, 12, None, 3);    // 13 boundary
+        add_edge(9, 15, 13, None, 3);    // 14 boundary
+        add_edge(8, 12, 14, Some(9), 3); // 15 (Twin 9)  B-R shared
 
         // Bot (Face 4)
-        add_edge(10, 17, 19, Some(12), 4); // 16 (Twin 12)
-        add_edge(11, 18, 16, Some(8), 4); // 17 (Twin 8)
-        add_edge(2, 19, 17, Some(4), 4); // 18 (Twin 4)
-        add_edge(1, 16, 18, Some(0), 4); // 19 (Twin 0)
+        add_edge(10, 17, 19, None, 4);   // 16 boundary
+        add_edge(11, 18, 16, None, 4);   // 17 boundary
+        add_edge(2, 19, 17, Some(4), 4); // 18 (Twin 4)  Bot-F shared
+        add_edge(1, 16, 18, None, 4);    // 19 boundary
 
         // Top (Face 5)
-        add_edge(6, 21, 23, Some(6), 5); // 20 (Twin 6)
-        add_edge(7, 22, 20, Some(10), 5); // 21 (Twin 10)
-        add_edge(13, 23, 21, Some(14), 5); // 22 (Twin 14)
-        add_edge(12, 20, 22, Some(2), 5); // 23 (Twin 2)
+        add_edge(6, 21, 23, Some(6), 5); // 20 (Twin 6)  Top-F shared
+        add_edge(7, 22, 20, None, 5);    // 21 boundary
+        add_edge(13, 23, 21, None, 5);   // 22 boundary
+        add_edge(12, 20, 22, None, 5);   // 23 boundary
 
         // Faces
         for i in 0..6 {
@@ -254,82 +254,6 @@ impl TSpline<f64> {
         mesh.faces.push(Face { edge: EdgeID(5) });
         mesh.faces.push(Face { edge: EdgeID(9) });
 
-        mesh.into()
-    }
-
-    pub fn new_simple() -> TSpline<f64> {
-        let mut mesh = TMesh {
-            vertices: Vec::with_capacity(8),
-            edges: Vec::with_capacity(20),
-            faces: Vec::with_capacity(3),
-        };
-
-        // 1. Vertices
-        // Mapped from createTPoints in simple.txt
-        let coords = [
-            (0.0, 0.0, 0.0, 0.0, 0.0, 1.0),  // 0: v0 (0,0) -> p0-2
-            (0.5, 0.0, 2.0, 0.0, 0.5, 1.0),  // 1: v1 (0.5,0) -> p1-1
-            (1.0, 0.0, 4.0, 0.0, 0.0, 1.0),  // 2: v2 (1,0) -> p2-3
-            (0.0, 0.5, 0.0, 2.0, 0.5, 1.0),  // 3: v3 (0,0.5) -> p3-0
-            (0.5, 0.5, 2.0, 2.0, -1.0, 1.0), // 4: v4 (0.5,0.5) -> p4-0 (T-Junction)
-            (1.0, 0.5, 4.0, 2.0, 0.5, 1.0),  // 5: v5 (1,0.5) -> p5-1
-            (0.0, 1.0, 0.0, 4.0, 0.0, 1.0),  // 6: v6 (0,1) -> p6-0
-            (1.0, 1.0, 4.0, 4.0, 0.0, 1.0),  // 7: v7 (1,1) -> p7-1
-        ];
-
-        for (i, (s, t, x, y, z, w)) in coords.iter().enumerate() {
-            let is_t = i == 4;
-            mesh.vertices.push(ControlPoint {
-                geometry: Vector4::new(*x, *y, *z, *w),
-                uv: ParamPoint {
-                    s: *s as isize,
-                    t: *t as isize,
-                },
-                outgoing_edge: EdgeID(0),
-                is_t_junction: is_t,
-            });
-        }
-
-        // Helper to add edge
-        let mut add_edge =
-            |origin: usize, next: usize, prev: usize, twin: Option<usize>, face: usize| {
-                let id = mesh.edges.len();
-                mesh.edges.push(HalfEdge {
-                    origin: VertID(origin),
-                    next: EdgeID(next),
-                    prev: EdgeID(prev),
-                    twin: twin.map(EdgeID),
-                    face: FaceID(face),
-                });
-                mesh.vertices[origin].outgoing_edge = EdgeID(id);
-            };
-
-        // Face 0 (v0->v1->v4->v3)
-        // Indices: 0, 1, 2, 3
-        add_edge(0, 1, 3, Some(13), 0); // 0: v0->v1
-        add_edge(1, 2, 0, Some(7), 0); // 1: v1->v4
-        add_edge(4, 3, 1, Some(8), 0); // 2: v4->v3
-        add_edge(3, 0, 2, Some(14), 0); // 3: v3->v0
-
-        // Face 1 (v1->v2->v5->v4)
-        // Indices: 4, 5, 6, 7
-        add_edge(1, 5, 7, Some(19), 1); // 4: v1->v2
-        add_edge(2, 6, 4, Some(18), 1); // 5: v2->v5
-        add_edge(5, 7, 5, Some(9), 1); // 6: v5->v4
-        add_edge(4, 4, 6, Some(1), 1); // 7: v4->v1
-
-        // Face 2 (v3->v4->v5->v7->v6)
-        // Indices: 8, 9, 10, 11, 12
-        add_edge(3, 9, 12, Some(2), 2); // 8: v3->v4
-        add_edge(4, 10, 8, Some(6), 2); // 9: v4->v5
-        add_edge(5, 11, 9, Some(17), 2); // 10: v5->v7
-        add_edge(7, 12, 10, Some(16), 2); // 11: v7->v6
-        add_edge(6, 8, 11, Some(15), 2); // 12: v6->v3
-
-        // Faces
-        mesh.faces.push(Face { edge: EdgeID(0) });
-        mesh.faces.push(Face { edge: EdgeID(4) });
-        mesh.faces.push(Face { edge: EdgeID(8) });
         mesh.into()
     }
 }
