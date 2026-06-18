@@ -126,17 +126,10 @@ mod tests {
     use alloc::vec;
     use alloc::vec::Vec;
 
-    fn local_knots(mesh: &UVMesh) -> Vec<LocalKnots> {
-        (0..mesh.points.len())
-            .map(|i| VertID(i))
-            .map(|v| mesh.infer_local_knots(v))
-            .collect()
-    }
-
     #[test]
     pub fn it_can_find_points_on_a_square() {
         let mesh = UVMesh::new_unit_square();
-        let knots = local_knots(&mesh);
+        let knots = mesh.local_knots();
         let points = vec![
             Vector4::new(0.0, 0.0, 0.0, 1.0),
             Vector4::new(1.0, 0.0, 0.0, 1.0),

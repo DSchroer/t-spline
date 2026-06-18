@@ -111,6 +111,14 @@ impl UVMesh {
         edges.into_iter()
     }
 
+    /// Compute all local knots
+    pub fn local_knots(&self) -> Vec<LocalKnots> {
+        (0..self.points.len())
+            .map(|i| VertID(i))
+            .map(|v| self.infer_local_knots(v))
+            .collect()
+    }
+
     /// Loops around a vertex `id` and returns all verteces connected to it
     pub fn connected_verteces(&self, id: VertID) -> impl ExactSizeIterator<Item = VertID> {
         self.connected_edges(id).map(move |e| {

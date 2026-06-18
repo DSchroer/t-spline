@@ -19,14 +19,15 @@
 
 extern crate alloc;
 
-pub mod algorithms;
+mod algorithms;
 mod numeric;
 pub mod uv_mesh;
 
 pub use crate::numeric::Numeric;
-use crate::uv_mesh::UVMesh;
+use crate::uv_mesh::{LocalKnots, UVMesh};
 use alloc::vec::Vec;
 pub use nalgebra::{Point3, Vector4};
+use crate::algorithms::subs;
 
 pub type ControlPoints<T> = Vec<Vector4<T>>;
 
@@ -39,14 +40,17 @@ pub struct TMesh<T> {
 #[derive(Debug, Default, Clone)]
 pub struct TSpline<T> {
     mesh: TMesh<T>,
+    knot_cache: Vec<LocalKnots>
 }
 
 impl<T> TSpline<T> {
     pub fn new(mesh: UVMesh, control_points: ControlPoints<T>) -> Self {
         assert_eq!(mesh.points.len(), control_points.len());
 
+        let knot_cache = mesh.local_knots();
         Self {
             mesh: TMesh{ mesh, control_points},
+            knot_cache
         }
     }
 
@@ -80,12 +84,14 @@ impl<T> TSpline<T> {
     /// spline.edit(dynOp.as_mut());
     /// ```
     ///
-    /// Complex operations should implement [Command].
+    /// Complex operations should implement [Edit].
     pub fn edit<C: Edit<T> + ?Sized>(&mut self, op: &mut C) -> C::Result {
         let r = op.execute(&mut self.mesh);
 
         assert!(self.mesh.mesh.is_valid());
         assert_eq!(self.mesh.mesh.points.len(), self.mesh.control_points.len());
+
+        self.knot_cache = self.mesh.mesh.local_knots();
 
         r
     }
@@ -99,7 +105,7 @@ impl<T> TSpline<T> {
     }
 }
 
-impl<T: Numeric> TSpline<T> {
+impl<T: Numeric + 'static> TSpline<T> {
     pub fn new_unit_square() -> Self {
         let mesh = UVMesh::new_unit_square();
         let control_points = mesh.points
@@ -111,6 +117,11 @@ impl<T: Numeric> TSpline<T> {
                 T::one()))
             .collect();
         Self::new(mesh, control_points)
+    }
+
+    /// Determine a point on the mesh
+    pub fn subs(&self, (s, t): (T, T)) -> Option<Point3<T>> {
+        subs(self.control_points(), (s, t), &self.knot_cache)
     }
 }
 
