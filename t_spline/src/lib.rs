@@ -19,37 +19,35 @@
 
 extern crate alloc;
 
-mod commands;
+pub mod algorithms;
 mod numeric;
-mod shapes;
-pub mod tmesh;
+pub mod uv_mesh;
 
-pub use crate::commands::{Command, CommandMut};
 pub use crate::numeric::Numeric;
+use crate::uv_mesh::UVMesh;
+use alloc::vec::Vec;
 pub use nalgebra::{Point3, Vector4};
 
-use crate::tmesh::TMesh;
+pub type ControlPoints<T> = Vec<Vector4<T>>;
+
+#[derive(Debug, Default, Clone)]
+pub struct TMesh<T> {
+    pub mesh: UVMesh,
+    pub control_points: ControlPoints<T>,
+}
 
 #[derive(Debug, Default, Clone)]
 pub struct TSpline<T> {
     mesh: TMesh<T>,
 }
 
-impl<T> From<TMesh<T>> for TSpline<T> {
-    fn from(value: TMesh<T>) -> Self {
-        TSpline::new(value)
-    }
-}
-
-impl<T> From<TSpline<T>> for TMesh<T> {
-    fn from(value: TSpline<T>) -> Self {
-        value.into_mesh()
-    }
-}
-
 impl<T> TSpline<T> {
-    pub fn new(mesh: TMesh<T>) -> Self {
-        Self { mesh }
+    pub fn new(mesh: UVMesh, control_points: ControlPoints<T>) -> Self {
+        assert_eq!(mesh.points.len(), control_points.len());
+
+        Self {
+            mesh: TMesh{ mesh, control_points},
+        }
     }
 
     /// Perform an operation on the underlying TMesh
@@ -57,54 +55,82 @@ impl<T> TSpline<T> {
     /// Simple modifications can be done using clojures:
     /// ```
     /// # use t_spline::*;
-    /// # use t_spline::tmesh::TMesh;
+    /// # use t_spline::uv_mesh::UVMesh;
     /// let mut spline = TSpline::new_unit_square();
-    /// spline.apply_mut(&mut |m: &mut TMesh<f64>| m.vertices[0].geometry.z = 1.0);
+    /// spline.edit(&mut |m: &mut TMesh<f64>| m.control_points[0].z = 1.0);
+    /// ```
+    ///
+    /// More state modifications can be done using functions:
+    /// ```
+    /// # use t_spline::*;
+    /// # use t_spline::uv_mesh::UVMesh;
+    /// let mut spline = TSpline::new_unit_square();
+    /// spline.edit(&mut modification);
+    ///
+    /// fn modification(m: &mut TMesh<f64>) {
+    /// }
     /// ```
     ///
     /// Dynamic dispatch modifications are also possible:
     /// ```
-    /// # use t_spline::tmesh::*;
+    /// # use t_spline::uv_mesh::*;
     /// # use t_spline::*;
     /// let mut spline = TSpline::new_unit_square();
-    /// let mut dynOp: Box<dyn CommandMut<f64, Result=()>> = Box::new(|m: &mut TMesh<f64>|{});
-    /// spline.apply_mut(dynOp.as_mut());
+    /// let mut dynOp: Box<dyn Edit<f64, Result=()>> = Box::new(|m: &mut TMesh<f64>|{});
+    /// spline.edit(dynOp.as_mut());
     /// ```
     ///
     /// Complex operations should implement [Command].
-    pub fn apply_mut<C: CommandMut<T> + ?Sized>(&mut self, op: &mut C) -> C::Result {
-        op.execute(&mut self.mesh)
+    pub fn edit<C: Edit<T> + ?Sized>(&mut self, op: &mut C) -> C::Result {
+        let r = op.execute(&mut self.mesh);
+
+        assert!(self.mesh.mesh.is_valid());
+        assert_eq!(self.mesh.mesh.points.len(), self.mesh.control_points.len());
+
+        r
     }
 
-    /// Perform an operation on the underlying TMesh
-    ///
-    /// Simple modifications can be done using clojures:
-    /// ```
-    /// # use t_spline::tmesh::*;
-    /// # use t_spline::*;
-    /// let mut spline = TSpline::new_unit_square();
-    /// spline.apply(&mut |m: &TMesh<f64>| {});
-    /// ```
-    ///
-    /// Dynamic dispatch modifications are also possible:
-    /// ```
-    /// # use t_spline::tmesh::*;
-    /// # use t_spline::*;
-    /// let mut spline = TSpline::new_unit_square();
-    /// let mut dynOp: Box<dyn Command<f64, Result=()>> = Box::new(|m: &TMesh<f64>|{});
-    /// spline.apply(dynOp.as_mut());
-    /// ```
-    ///
-    /// Complex operations should implement [Command].
-    pub fn apply<C: Command<T> + ?Sized>(&self, op: &mut C) -> C::Result {
-        op.execute(&self.mesh)
+    pub fn mesh(&self) -> &UVMesh {
+        &self.mesh.mesh
     }
 
-    pub fn mesh(&self) -> &TMesh<T> {
-        &self.mesh
+    pub fn control_points(&self) -> &ControlPoints<T> {
+        &self.mesh.control_points
     }
+}
 
-    pub fn into_mesh(self) -> TMesh<T> {
-        self.mesh
+impl<T: Numeric> TSpline<T> {
+    pub fn new_unit_square() -> Self {
+        let mesh = UVMesh::new_unit_square();
+        let control_points = mesh.points
+            .iter()
+            .map(|p| Vector4::new(
+                T::from_isize(p.s).unwrap(),
+                T::from_isize(p.t).unwrap(),
+                T::zero(),
+                T::one()))
+            .collect();
+        Self::new(mesh, control_points)
+    }
+}
+
+/// Edit operation to perform on a spline mesh
+pub trait Edit<T> {
+    /// Error type of the operation
+    type Result;
+
+    /// Perform the operation, returning any error as needed
+    fn execute(&mut self, mesh: &mut TMesh<T>)
+    -> Self::Result;
+}
+
+impl<T, F, Out> Edit<T> for F
+where
+    F: FnMut(&mut TMesh<T>) -> Out,
+{
+    type Result = Out;
+
+    fn execute(&mut self, mesh: &mut TMesh<T>) -> Out {
+        self(mesh)
     }
 }

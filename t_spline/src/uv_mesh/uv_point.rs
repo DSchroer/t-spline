@@ -15,8 +15,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#[derive(Default, Debug, Copy, Clone)]
-pub struct ParamPoint {
+use crate::uv_mesh::ids::EdgeID;
+
+#[derive(Debug, Clone)]
+pub struct UVPoint {
     pub s: isize,
     pub t: isize,
+    pub outgoing_edge: EdgeID,
 }

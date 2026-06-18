@@ -18,8 +18,17 @@
 #[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)]
 pub struct VertID(pub usize);
 
+impl From<VertID> for usize {
+    fn from(value: VertID) -> Self {
+        value.0
+    }
+}
+
 #[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)]
 pub struct EdgeID(pub usize);
 
-#[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)]
-pub struct FaceID(pub usize);
+impl From<EdgeID> for usize {
+    fn from(value: EdgeID) -> Self {
+        value.0
+    }
+}

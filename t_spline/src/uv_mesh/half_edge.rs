@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::tmesh::ids::{EdgeID, FaceID, VertID};
+use crate::uv_mesh::ids::{EdgeID, VertID};
 
 /// Half edge
 #[derive(Debug, Clone)]
@@ -24,8 +24,6 @@ pub struct HalfEdge {
     pub origin: VertID,
     /// The opposite half-edge (right side)
     pub twin: Option<EdgeID>,
-    /// The face to the left of this edge
-    pub face: FaceID,
     /// Next half-edge in the face loop
     pub next: EdgeID,
     /// Previous half-edge in the face loop
