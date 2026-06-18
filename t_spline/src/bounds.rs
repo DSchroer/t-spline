@@ -16,7 +16,8 @@
  */
 
 use crate::Numeric;
-use crate::tmesh::ids::{EdgeID};
+use crate::uv_mesh::UVMesh;
+use crate::uv_mesh::uv_point::UVPoint;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Bounds<T> {
@@ -63,24 +64,19 @@ impl<T: Numeric> Bounds<T> {
         (s, t)
     }
 
-    // pub fn add_mesh(&mut self, mesh: &TMesh<T>) {
-    //     for v in &mesh.vertices {
-    //         self.add_vertex(v)
-    //     }
-    // }
+    pub fn add_mesh(&mut self, mesh: &impl UVMesh) {
+        for v in mesh.points() {
+            self.add_point(v)
+        }
+    }
 
-    // pub fn add_edge(&mut self, mesh: &TMesh<T>, edge: EdgeID) {
-    //     let v = mesh.vertex(mesh.edge(edge).origin);
-    //     self.add_vertex(v)
-    // }
+    pub fn add_point(&mut self, point: &UVPoint) {
+        self.s.0 = self.s.0.min(T::from_isize(point.s).unwrap());
+        self.s.1 = self.s.1.max(T::from_isize(point.s).unwrap());
 
-    // pub fn add_vertex(&mut self, point: &ControlPoint<T>) {
-    //     self.s.0 = self.s.0.min(T::from_isize(point.uv.s).unwrap());
-    //     self.s.1 = self.s.1.max(T::from_isize(point.uv.s).unwrap());
-    //
-    //     self.t.0 = self.t.0.min(T::from_isize(point.uv.t).unwrap());
-    //     self.t.1 = self.t.1.max(T::from_isize(point.uv.t).unwrap());
-    // }
+        self.t.0 = self.t.0.min(T::from_isize(point.t).unwrap());
+        self.t.1 = self.t.1.max(T::from_isize(point.t).unwrap());
+    }
 }
 
 #[cfg(test)]

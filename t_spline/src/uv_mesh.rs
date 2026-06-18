@@ -46,26 +46,22 @@ pub struct LocalKnots {
     pub t_knots: KnotVector,
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct UVMesh {
-    pub points: Vec<UVPoint>,
-    pub edges: Vec<HalfEdge>,
-}
+pub trait UVMesh {
+    fn points(&self) -> &[UVPoint];
+    fn edges(&self) -> &[HalfEdge];
 
-impl UVMesh {
-    pub fn edge(&self, id: EdgeID) -> Option<&HalfEdge> {
-        self.edges.get::<usize>(id.into())
+    fn edge(&self, id: EdgeID) -> Option<&HalfEdge> {
+        self.edges().get(id.0)
+    }
+    fn point(&self, id: VertID) -> Option<&UVPoint> {
+        self.points().get(id.0)
     }
 
-    pub fn point(&self, id: VertID) -> Option<&UVPoint> {
-        self.points.get::<usize>(id.into())
-    }
-
-    pub fn next_edge(&self, edge: &HalfEdge) -> &HalfEdge {
+    fn next_edge(&self, edge: &HalfEdge) -> &HalfEdge {
         &self.edge(edge.next).expect(INVALID_MESH)
     }
 
-    pub fn connected_edges(&self, id: VertID) -> impl ExactSizeIterator<Item = EdgeID> {
+    fn connected_edges(&self, id: VertID) -> impl ExactSizeIterator<Item = EdgeID> {
         let mut edges: SmallVec<[EdgeID; 4]> = SmallVec::with_capacity(4); // max 4
 
         let start_edge_id = self.point(id).expect(INVALID_MESH).outgoing_edge;
@@ -112,15 +108,15 @@ impl UVMesh {
     }
 
     /// Compute all local knots
-    pub fn local_knots(&self) -> Vec<LocalKnots> {
-        (0..self.points.len())
+    fn local_knots(&self) -> Vec<LocalKnots> {
+        (0..self.points().len())
             .map(|i| VertID(i))
             .map(|v| self.infer_local_knots(v))
             .collect()
     }
 
     /// Loops around a vertex `id` and returns all verteces connected to it
-    pub fn connected_verteces(&self, id: VertID) -> impl ExactSizeIterator<Item = VertID> {
+    fn connected_verteces(&self, id: VertID) -> impl ExactSizeIterator<Item = VertID> {
         self.connected_edges(id).map(move |e| {
             let edge = self.edge(e).expect(INVALID_MESH);
             if edge.origin == id {
@@ -133,7 +129,7 @@ impl UVMesh {
 
     /// Infers the local knot vectors for a specific control point.
     /// Returns (s_vector, t_vector).
-    pub fn infer_local_knots(&self, v_id: VertID) -> LocalKnots {
+    fn infer_local_knots(&self, v_id: VertID) -> LocalKnots {
         let s_knots = self.trace_local_knots(v_id, Direction::S);
         let t_knots = self.trace_local_knots(v_id, Direction::T);
 
@@ -230,14 +226,16 @@ impl UVMesh {
         None
     }
 
-    pub fn is_valid(&self) -> bool {
-        for point in &self.points {
+    fn is_valid(&self) -> bool {
+        for (i, point) in self.points().iter().enumerate() {
             if self.edge(point.outgoing_edge).is_none() {
                 return false;
             }
+
+            // TODO: check if all points are orthogonal
         }
 
-        for edge in &self.edges {
+        for edge in self.edges() {
             if self.point(edge.origin).is_none() {
                 return false;
             }
@@ -260,8 +258,8 @@ impl UVMesh {
         true
     }
 
-    pub fn is_manifold(&self) -> bool {
-        for edge in &self.edges {
+    fn is_manifold(&self) -> bool {
+        for edge in self.edges() {
             if edge.twin.is_none() {
                 return false;
             }
@@ -269,50 +267,22 @@ impl UVMesh {
 
         true
     }
-
-    pub fn new_unit_square() -> Self {
-        let mut mesh = UVMesh {
-            points: Vec::with_capacity(4),
-            edges: Vec::with_capacity(4),
-        };
-
-        // 1. Define 4 Corner Vertices
-        let coords: [(isize, isize); _] = [(0, 0), (1, 0), (1, 1), (0, 1)];
-        for (i, (s, t)) in coords.into_iter().enumerate() {
-            mesh.points.push(UVPoint {
-                s,
-                t,
-                outgoing_edge: EdgeID(i), // Inner edges are 0..4
-            });
-        }
-
-        // 2. Define 4 inner Half-Edges in a CCW loop
-        for i in 0..4 {
-            mesh.edges.push(HalfEdge {
-                origin: VertID(i),
-                next: EdgeID((i + 1) % 4),
-                prev: EdgeID((i + 3) % 4),
-                twin: None,
-            });
-        }
-
-        mesh.into()
-    }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::TSpline;
     use super::*;
 
     #[test]
     fn it_has_valid_unit_square() {
-        let mesh = UVMesh::new_unit_square();
+        let mesh = TSpline::<f64>::new_unit_square();
         assert!(mesh.is_valid());
     }
 
     #[test]
     fn it_finds_connected_edges() {
-        let mesh = UVMesh::new_unit_square();
+        let mesh = TSpline::<f64>::new_unit_square();
 
         let edges = mesh.connected_edges(VertID(0));
         assert_eq!(2, edges.len()); // find edge in both directions
@@ -320,7 +290,7 @@ mod tests {
 
     #[test]
     fn it_finds_vertex_in_direction() {
-        let mesh = UVMesh::new_unit_square();
+        let mesh = TSpline::<f64>::new_unit_square();
 
         assert_eq!(
             Some(VertID(1)),
@@ -345,7 +315,7 @@ mod tests {
 
     #[test]
     fn it_can_trace_direct_knots() {
-        let mesh = UVMesh::new_unit_square();
+        let mesh = TSpline::<f64>::new_unit_square();
 
         let trace = mesh.trace_knots(VertID(0), Direction::S, true);
         assert_eq!([Some(1), None], trace);
@@ -353,7 +323,7 @@ mod tests {
 
     #[test]
     fn it_can_infer_local_knots() {
-        let mesh = UVMesh::new_unit_square();
+        let mesh = TSpline::<f64>::new_unit_square();
 
         assert_eq!(
             LocalKnots {

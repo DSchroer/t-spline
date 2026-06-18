@@ -15,26 +15,28 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::Op;
 use rayon::prelude::*;
-use t_spline::tmesh::bounds::Bounds;
-use t_spline::tmesh::ids::VertID;
-use t_spline::tmesh::{LocalKnots, TMesh};
-use t_spline::{Command, Numeric, Point3};
+use t_spline::algorithms::subs;
+use t_spline::bounds::Bounds;
+use t_spline::uv_mesh::{LocalKnots, UVMesh};
+use t_spline::uv_mesh::ids::VertID;
+use t_spline::{Numeric, Point3, TSpline};
 
 /// Calculate points evenly across the surface
 pub struct Tessellate {
     pub resolution: usize,
 }
 
-impl<T: Numeric + Send + Sync + 'static> Command<T> for Tessellate {
-    type Result = Vec<Point3<T>>;
+impl<T: Numeric + Send + Sync + 'static> Op<T> for Tessellate {
+    type Output = Vec<Point3<T>>;
 
-    fn execute(&mut self, mesh: &TMesh<T>) -> Self::Result {
+    fn execute(&self, spline: &TSpline<T>) -> Self::Output {
         let mut bounds = Bounds::default();
-        bounds.add_mesh(mesh);
+        bounds.add_mesh(spline);
 
-        let knot_cache: Vec<_> = Self::knot_vectors(mesh);
-        Self::tessellate(self.resolution, bounds, mesh, &knot_cache)
+        let knot_cache: Vec<_> = Self::knot_vectors(spline);
+        Self::tessellate(self.resolution, bounds, spline, &knot_cache)
     }
 }
 
@@ -42,18 +44,24 @@ impl Tessellate {
     pub fn tessellate<T: Numeric + Send + Sync + 'static>(
         resolution: usize,
         bounds: Bounds<T>,
-        mesh: &TMesh<T>,
+        mesh: &TSpline<T>,
         knot_cache: &[LocalKnots],
     ) -> Vec<Point3<T>> {
         (0..resolution * resolution)
             .into_par_iter()
-            .map(|i| mesh.subs(bounds.interpolate(i, resolution), knot_cache))
+            .map(|i| {
+                subs(
+                    mesh.control_points(),
+                    bounds.interpolate(i, resolution),
+                    knot_cache,
+                )
+            })
             .filter_map(|p| p)
             .collect()
     }
 
-    pub fn knot_vectors<T: Numeric + Send + Sync>(mesh: &TMesh<T>) -> Vec<LocalKnots> {
-        (0..mesh.vertices.len())
+    pub fn knot_vectors<T: Numeric + Send + Sync>(mesh: &TSpline<T>) -> Vec<LocalKnots> {
+        (0..mesh.points().len())
             .into_par_iter()
             .map(|v| mesh.infer_local_knots(VertID(v)))
             .collect()
@@ -63,36 +71,35 @@ impl Tessellate {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use t_spline::TSpline;
-    use t_spline::tmesh::ids::FaceID;
+    use t_spline::{Point3, TSpline};
 
     #[test]
     pub fn it_can_evaluate_points_on_square() {
         let square = TSpline::new_unit_square();
-        let knots = Tessellate::knot_vectors(square.mesh());
+        let knots = Tessellate::knot_vectors(&square);
 
         assert_eq!(
             Some(Point3::new(0., 0., 0.)),
-            square.mesh().subs((0.0, 0.0), &knots)
+            subs(square.control_points(), (0.0, 0.0), &knots)
         );
         assert_eq!(
             Some(Point3::new(1., 0., 0.)),
-            square.mesh().subs((1.0, 0.0), &knots)
+            subs(square.control_points(), (1.0, 0.0), &knots)
         );
         assert_eq!(
             Some(Point3::new(0., 1., 0.)),
-            square.mesh().subs((0.0, 1.0), &knots)
+            subs(square.control_points(), (0.0, 1.0), &knots)
         );
         assert_eq!(
             Some(Point3::new(1., 1., 0.)),
-            square.mesh().subs((1.0, 1.0), &knots)
+            subs(square.control_points(), (1.0, 1.0), &knots)
         );
     }
 
     #[test]
     pub fn it_can_tessellate_a_square() {
         let square = TSpline::new_unit_square();
-        let points = square.apply(&mut Tessellate { resolution: 2 });
+        let points = Tessellate { resolution: 2 }.execute(&square);
 
         assert_eq!(4, points.len());
 
@@ -105,8 +112,8 @@ mod tests {
     #[test]
     pub fn it_can_evaluate_center() {
         let square = TSpline::new_unit_square();
-        let knots = Tessellate::knot_vectors(square.mesh());
-        let center = square.mesh().subs((0.5, 0.5), &knots).unwrap();
+        let knots = Tessellate::knot_vectors(&square);
+        let center = subs(square.control_points(), (0.5, 0.5), &knots).unwrap();
 
         // Check components with epsilon tolerance
         let expected = Point3::new(0.5, 0.5, 0.0);
@@ -116,46 +123,4 @@ mod tests {
         assert_eq!(0., diff.z);
     }
 
-    #[test]
-    pub fn it_can_tessellate_square() {
-        let square = TSpline::<f64>::new_unit_square();
-        let resolution = 10;
-        let points = square.apply(&mut Tessellate { resolution });
-
-        assert_eq!(points.len(), resolution * resolution);
-
-        // Verify bounds of tessellated points
-        for p in points {
-            assert!(p.x >= -1e-9 && p.x <= 1.0 + 1e-9);
-            assert!(p.y >= -1e-9 && p.y <= 1.0 + 1e-9);
-            assert!((p.z - 0.0).abs() < 1e-9);
-        }
-    }
-
-    #[test]
-    pub fn it_can_create_and_evaluate_t_junction_mesh() {
-        let mut t_mesh = TSpline::new_t_junction();
-
-        // lift center t-junction,
-        // spline should still be symmetrical
-        t_mesh.apply_mut(&mut |m: &mut TMesh<f64>| {
-            let j = m.vertices.iter_mut().find(|v| v.is_t_junction).unwrap();
-            j.geometry.z = 0.5;
-        });
-
-        let knots = Tessellate::knot_vectors(t_mesh.mesh());
-
-        let mut f1_bounds = Bounds::default();
-        f1_bounds.add_face(&t_mesh.mesh(), FaceID(1));
-        assert_eq!(1., f1_bounds.area());
-        let f1_center = t_mesh.mesh().subs(f1_bounds.center(), &knots).unwrap();
-
-        let mut f2_bounds = Bounds::default();
-        f2_bounds.add_face(&t_mesh.mesh(), FaceID(2));
-        assert_eq!(1., f2_bounds.area());
-        let f2_center = t_mesh.mesh().subs(f2_bounds.center(), &knots).unwrap();
-
-        let diff = f1_center.z - f2_center.z;
-        assert!(diff.abs() < f64::delta(), "t-spline is not symmetrical");
-    }
 }

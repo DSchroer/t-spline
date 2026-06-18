@@ -125,10 +125,11 @@ mod tests {
     use crate::uv_mesh::ids::VertID;
     use alloc::vec;
     use alloc::vec::Vec;
+    use crate::TSpline;
 
     #[test]
     pub fn it_can_find_points_on_a_square() {
-        let mesh = UVMesh::new_unit_square();
+        let mesh = TSpline::<f64>::new_unit_square();
         let knots = mesh.local_knots();
         let points = vec![
             Vector4::new(0.0, 0.0, 0.0, 1.0),

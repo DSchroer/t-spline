@@ -21,12 +21,14 @@ use bevy::{
     color::palettes::tailwind,
     prelude::*,
 };
-use t_spline::{Command, Point3, TSpline};
+use t_spline::{Point3, TSpline};
+use t_spline::uv_mesh::UVMesh;
+use t_spline_commands::Op;
 use t_spline_commands::tessellate::Tessellate;
 
 fn main() -> Result<()> {
     let spline: TSpline<f64> = TSpline::new_unit_square();
-    let points = Tessellate { resolution: 100 }.apply(&spline);
+    let points = Tessellate { resolution: 10 }.execute(&spline);
 
     App::new()
         .insert_resource(ClearColor(tailwind::BLUE_50.into()))
@@ -73,11 +75,11 @@ fn draw_uv_controls(
         ..default()
     });
 
-    for p in &render.spline.mesh().vertices {
+    for p in render.spline.points() {
         commands.spawn((
             Mesh3d(point_mesh.clone()),
             MeshMaterial3d(point_mat.clone()),
-            Transform::from_xyz(p.uv.s as f32, p.uv.t as f32, 0. as f32),
+            Transform::from_xyz(p.s as f32, p.t as f32, 0. as f32),
         ));
     }
 }
@@ -117,38 +119,34 @@ fn draw_control(
         ..default()
     });
 
-    for p in &render.spline.mesh().vertices {
+    for p in render.spline.control_points() {
         commands.spawn((
             Mesh3d(control_mesh.clone()),
             MeshMaterial3d(control_mat.clone()),
-            Transform::from_xyz(
-                p.geometry.x as f32,
-                p.geometry.y as f32,
-                p.geometry.z as f32,
-            ),
+            Transform::from_xyz(p.x as f32, p.y as f32, p.z as f32),
         ));
     }
 }
 
-fn draw_cage(render: Res<Render>, mut gizmos: Gizmos) {
-    for e in &render.spline.mesh().edges {
-        let from = render.spline.mesh().vertex(e.origin);
-        let to = render
-            .spline
-            .mesh()
-            .vertex(render.spline.mesh().edge(e.next).origin);
-        gizmos.line(
-            Vec3::new(
-                from.geometry.x as f32,
-                from.geometry.y as f32,
-                from.geometry.z as f32,
-            ),
-            Vec3::new(
-                to.geometry.x as f32,
-                to.geometry.y as f32,
-                to.geometry.z as f32,
-            ),
-            tailwind::GREEN_500,
-        );
-    }
-}
+// fn draw_cage(render: Res<Render>, mut gizmos: Gizmos) {
+//     for e in &render.spline.mesh().edges {
+//         let from = render.spline.mesh().point(e.origin);
+//         let to = render
+//             .spline
+//             .mesh()
+//             .vertex(render.spline.mesh().edge(e.next).origin);
+//         gizmos.line(
+//             Vec3::new(
+//                 from.geometry.x as f32,
+//                 from.geometry.y as f32,
+//                 from.geometry.z as f32,
+//             ),
+//             Vec3::new(
+//                 to.geometry.x as f32,
+//                 to.geometry.y as f32,
+//                 to.geometry.z as f32,
+//             ),
+//             tailwind::GREEN_500,
+//         );
+//     }
+// }

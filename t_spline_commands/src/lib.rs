@@ -14,5 +14,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+use t_spline::TSpline;
 
 pub mod tessellate;
+
+pub trait Op<T> {
+    type Output;
+
+    fn execute(&self, spline: &TSpline<T>) -> Self::Output;
+}
