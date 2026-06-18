@@ -162,14 +162,9 @@ pub trait UVMesh {
         axis: Direction,
         positive: bool,
     ) -> [Option<isize>; DEPTH] {
-        struct RayHit {
-            edge: EdgeID,
-            coord: (isize, isize),
-        }
-
         enum Start {
             Vertex(VertID),
-            Hit(RayHit),
+            Hit(UVPoint),
         }
 
         let mut results = [None; DEPTH];
@@ -179,22 +174,33 @@ pub trait UVMesh {
             match next_v {
                 Start::Vertex(v) => {
                     if let Some(found) = self.find_next_vertex_in_direction(v, axis, positive) {
+                        let point = self.point(found).expect(INVALID_MESH);
+                        results[i] = point.value_in_dir(axis).into();
                         next_v = Start::Vertex(found);
-                        results[i] = match axis {
-                            Direction::S => self.point(found).expect(INVALID_MESH).s,
-                            Direction::T => self.point(found).expect(INVALID_MESH).t,
-                        }
-                        .into();
+                    } else if let Some(point) = self.trace_in_direction(self.point(v).expect(INVALID_MESH), axis, positive) {
+                        results[i] = point.value_in_dir(axis).into();
+                        next_v = Start::Hit(point);
                     } else {
-                        // TODO: Ray Trace through face
                         break;
                     }
                 }
-                Start::Hit(_) => todo!(),
+                Start::Hit(p) => {
+                    if let Some(point) = self.trace_in_direction(&p, axis, positive) {
+                        results[i] = point.value_in_dir(axis).into();
+                        next_v = Start::Hit(point);
+                    } else {
+                        break;
+                    }
+                },
             }
         }
 
         results
+    }
+
+    fn trace_in_direction(&self, start: &UVPoint, axis: Direction, positive: bool) -> Option<UVPoint> {
+        // TODO: ray trace to next point
+        None
     }
 
     /// Helper to find the next vertex along the mesh edges in a specific direction.

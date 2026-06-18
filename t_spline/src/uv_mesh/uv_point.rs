@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
+use crate::uv_mesh::direction::Direction;
 use crate::uv_mesh::ids::EdgeID;
 
 #[derive(Debug, Clone)]
@@ -22,4 +22,13 @@ pub struct UVPoint {
     pub s: isize,
     pub t: isize,
     pub outgoing_edge: EdgeID,
+}
+
+impl UVPoint {
+    pub fn value_in_dir(&self, direction: Direction) -> isize {
+        match direction {
+            Direction::S => self.s,
+            Direction::T => self.t,
+        }
+    }
 }
