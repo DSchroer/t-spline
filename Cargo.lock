@@ -4650,6 +4650,7 @@ dependencies = [
  "nalgebra",
  "num-traits",
  "smallvec",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

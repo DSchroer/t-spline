@@ -122,9 +122,7 @@ pub fn subs<T: Numeric + 'static>(
 mod tests {
     use super::*;
     use crate::uv_mesh::UVMesh;
-    use crate::uv_mesh::ids::VertID;
     use alloc::vec;
-    use alloc::vec::Vec;
     use crate::TSpline;
 
     #[test]

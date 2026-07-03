@@ -64,7 +64,7 @@ impl<T> TSpline<T> {
         let r = op(self.into());
 
         assert_eq!(self.points.len(), self.control_points.len());
-        assert!(self.is_valid());
+        self.validate().unwrap();
 
         r
     }
