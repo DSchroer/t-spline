@@ -15,57 +15,37 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::Op;
 use rayon::prelude::*;
+use t_spline::Point3;
 use t_spline::algorithms::subs;
-use t_spline::bounds::Bounds;
-use t_spline::uv_mesh::{LocalKnots, UVMesh};
+use t_spline::bounds::Bounded;
+use t_spline::control_mesh::ControlMesh;
+use t_spline::uv_mesh::LocalKnots;
 use t_spline::uv_mesh::ids::VertID;
-use t_spline::{Numeric, Point3, TSpline};
 
-/// Calculate points evenly across the surface
-pub struct Tessellate {
-    pub resolution: usize,
+pub fn tessellate<T: ControlMesh + Sync>(mesh: &T, resolution: usize) -> Vec<Point3<T::Unit>> {
+    let bounds = mesh.bounds();
+
+    let knot_cache: Vec<_> = knot_vectors(mesh);
+
+    (0..resolution * resolution)
+        .into_par_iter()
+        .map(|i| {
+            subs(
+                mesh.control_points(),
+                bounds.interpolate(i, resolution),
+                &knot_cache,
+            )
+        })
+        .filter_map(|p| p)
+        .collect()
 }
 
-impl<T: Numeric + Send + Sync + 'static> Op<T> for Tessellate {
-    type Output = Vec<Point3<T>>;
-
-    fn execute(&self, spline: &TSpline<T>) -> Self::Output {
-        let mut bounds = Bounds::default();
-        bounds.add_mesh(spline);
-
-        let knot_cache: Vec<_> = Self::knot_vectors(spline);
-        Self::tessellate(self.resolution, bounds, spline, &knot_cache)
-    }
-}
-
-impl Tessellate {
-    pub fn tessellate<T: Numeric + Send + Sync + 'static>(
-        resolution: usize,
-        bounds: Bounds<T>,
-        mesh: &TSpline<T>,
-        knot_cache: &[LocalKnots],
-    ) -> Vec<Point3<T>> {
-        (0..resolution * resolution)
-            .into_par_iter()
-            .map(|i| {
-                subs(
-                    mesh.control_points(),
-                    bounds.interpolate(i, resolution),
-                    knot_cache,
-                )
-            })
-            .filter_map(|p| p)
-            .collect()
-    }
-
-    pub fn knot_vectors<T: Numeric + Send + Sync>(mesh: &TSpline<T>) -> Vec<LocalKnots> {
-        (0..mesh.points().len())
-            .into_par_iter()
-            .map(|v| mesh.infer_local_knots(VertID(v)))
-            .collect()
-    }
+fn knot_vectors(mesh: &(impl ControlMesh + Sync)) -> Vec<LocalKnots> {
+    (0..mesh.points().len())
+        .into_par_iter()
+        .map(|v| mesh.infer_local_knots(VertID(v)))
+        .collect()
 }
 
 #[cfg(test)]
@@ -76,7 +56,7 @@ mod tests {
     #[test]
     pub fn it_can_evaluate_points_on_square() {
         let square = TSpline::new_unit_square();
-        let knots = Tessellate::knot_vectors(&square);
+        let knots = knot_vectors(&square);
 
         assert_eq!(
             Some(Point3::new(0., 0., 0.)),
@@ -99,7 +79,7 @@ mod tests {
     #[test]
     pub fn it_can_tessellate_a_square() {
         let square = TSpline::new_unit_square();
-        let points = Tessellate { resolution: 2 }.execute(&square);
+        let points = tessellate(&square, 2);
 
         assert_eq!(4, points.len());
 
@@ -112,7 +92,7 @@ mod tests {
     #[test]
     pub fn it_can_evaluate_center() {
         let square = TSpline::new_unit_square();
-        let knots = Tessellate::knot_vectors(&square);
+        let knots = knot_vectors(&square);
         let center = subs(square.control_points(), (0.5, 0.5), &knots).unwrap();
 
         // Check components with epsilon tolerance
@@ -122,5 +102,4 @@ mod tests {
         assert_eq!(0., diff.y);
         assert_eq!(0., diff.z);
     }
-
 }

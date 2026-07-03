@@ -21,14 +21,14 @@ use bevy::{
     color::palettes::tailwind,
     prelude::*,
 };
-use t_spline::{Point3, TSpline};
+use t_spline::control_mesh::ControlMesh;
 use t_spline::uv_mesh::UVMesh;
-use t_spline_commands::Op;
-use t_spline_commands::tessellate::Tessellate;
+use t_spline::{Point3, TSpline};
+use t_spline_commands::tessellate::tessellate;
 
 fn main() -> Result<()> {
-    let spline: TSpline<f64> = TSpline::new_unit_square();
-    let points = Tessellate { resolution: 10 }.execute(&spline);
+    let spline = TSpline::new_unit_square();
+    let points = tessellate(&spline, 30);
 
     App::new()
         .insert_resource(ClearColor(tailwind::BLUE_50.into()))
@@ -59,7 +59,7 @@ fn setup(mut commands: Commands) {
 #[derive(Resource)]
 struct Render {
     points: Vec<Point3<f64>>,
-    spline: TSpline<f64>,
+    spline: TSpline,
 }
 
 fn draw_uv_controls(

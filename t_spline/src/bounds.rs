@@ -14,8 +14,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
 use crate::Numeric;
+use crate::control_mesh::ControlMesh;
 use crate::uv_mesh::UVMesh;
 use crate::uv_mesh::uv_point::UVPoint;
 
@@ -76,6 +76,18 @@ impl<T: Numeric> Bounds<T> {
 
         self.t.0 = self.t.0.min(T::from_isize(point.t).unwrap());
         self.t.1 = self.t.1.max(T::from_isize(point.t).unwrap());
+    }
+}
+
+pub trait Bounded<T> {
+    fn bounds(&self) -> Bounds<T>;
+}
+
+impl<T: ControlMesh> Bounded<T::Unit> for T {
+    fn bounds(&self) -> Bounds<T::Unit> {
+        let mut bounds = Bounds::default();
+        bounds.add_mesh(self);
+        bounds
     }
 }
 

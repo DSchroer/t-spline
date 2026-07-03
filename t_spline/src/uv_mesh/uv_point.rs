@@ -17,7 +17,7 @@
 use crate::uv_mesh::direction::Direction;
 use crate::uv_mesh::ids::EdgeID;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct UVPoint {
     pub s: isize,
     pub t: isize,

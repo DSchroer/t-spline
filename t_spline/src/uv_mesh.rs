@@ -18,11 +18,13 @@
 pub mod direction;
 pub mod half_edge;
 pub mod ids;
+mod line;
 pub mod uv_point;
 
 use crate::uv_mesh::direction::Direction;
 use crate::uv_mesh::half_edge::HalfEdge;
 use crate::uv_mesh::ids::{EdgeID, VertID};
+use crate::uv_mesh::line::Line;
 use crate::uv_mesh::uv_point::UVPoint;
 use alloc::vec::Vec;
 use smallvec::SmallVec;
@@ -45,32 +47,6 @@ pub type KnotVector = [isize; 5];
 pub struct LocalKnots {
     pub s_knots: KnotVector,
     pub t_knots: KnotVector,
-}
-
-pub struct Line<'a>(&'a UVPoint, &'a UVPoint);
-
-impl Line<'_> {
-    pub fn delta(&self, axis: Direction) -> isize {
-        match axis {
-            Direction::S => self.0.s - self.1.s,
-            Direction::T => self.0.t - self.1.t,
-        }
-    }
-
-    pub fn is_collinear(&self, axis: Direction) -> bool {
-        match axis {
-            Direction::S => self.0.t == self.1.t,
-            Direction::T => self.0.s == self.1.s,
-        }
-    }
-
-    pub fn is_orthogonal(&self) -> bool {
-        self.is_collinear(Direction::S) || self.is_collinear(Direction::T)
-    }
-
-    pub fn intersects(&self, origin: &UVPoint, axis: Direction, positive: bool) -> Option<UVPoint> {
-        todo!()
-    }
 }
 
 pub trait UVMesh {
@@ -143,7 +119,10 @@ pub trait UVMesh {
     }
 
     fn line(&self, edge: &HalfEdge) -> Line<'_> {
-        Line(self.point(edge.origin).expect(INVALID_MESH), self.point(self.next_edge(edge).origin).expect(INVALID_MESH))
+        Line(
+            self.point(edge.origin).expect(INVALID_MESH),
+            self.point(self.next_edge(edge).origin).expect(INVALID_MESH),
+        )
     }
 
     fn edge_loop<'a>(&'a self, edge: &'a HalfEdge) -> impl Iterator<Item = &'a HalfEdge> {
@@ -225,7 +204,9 @@ pub trait UVMesh {
                         let point = self.point(found).expect(INVALID_MESH);
                         results[i] = point.value_in_dir(axis).into();
                         next_v = Start::Vertex(found);
-                    } else if let Some(point) = self.trace_in_direction(self.point(v).expect(INVALID_MESH), axis, positive) {
+                    } else if let Some(point) =
+                        self.trace_in_direction(self.point(v).expect(INVALID_MESH), axis, positive)
+                    {
                         results[i] = point.value_in_dir(axis).into();
                         next_v = Start::Hit(point);
                     } else {
@@ -239,14 +220,20 @@ pub trait UVMesh {
                     } else {
                         break;
                     }
-                },
+                }
             }
         }
 
         results
     }
 
-    fn trace_for_edge_loop(&self, edge: &HalfEdge, start: &UVPoint, axis: Direction, positive: bool) -> Option<UVPoint> {
+    fn trace_for_edge_loop(
+        &self,
+        edge: &HalfEdge,
+        start: &UVPoint,
+        axis: Direction,
+        positive: bool,
+    ) -> Option<UVPoint> {
         for line in self.edge_loop(edge).map(|e| self.line(e)) {
             if let Some(intersection) = line.intersects(start, axis, positive) {
                 return Some(intersection);
@@ -255,7 +242,12 @@ pub trait UVMesh {
         None
     }
 
-    fn trace_in_direction(&self, start: &UVPoint, axis: Direction, positive: bool) -> Option<UVPoint> {
+    fn trace_in_direction(
+        &self,
+        start: &UVPoint,
+        axis: Direction,
+        positive: bool,
+    ) -> Option<UVPoint> {
         let edge = self.edge(start.outgoing_edge).expect(INVALID_MESH);
         if let Some(i) = self.trace_for_edge_loop(&edge, start, axis, positive) {
             return Some(i);
@@ -284,7 +276,7 @@ pub trait UVMesh {
             let l = Line(dest_v, v);
             let delta = l.delta(axis);
 
-            if l.is_collinear(axis) && ((positive && delta > 0) || (!positive && delta < 0)) {
+            if l.is_axis_aligned(axis) && ((positive && delta > 0) || (!positive && delta < 0)) {
                 return Some(vertex);
             }
         }
@@ -354,28 +346,30 @@ pub enum ValidationError {
     InvalidPrevEdge(),
     #[error("twin is an invalid reference")]
     InvalidTwinEdge(),
+    #[error("points and control points are mismatched")]
+    DisconnectedPoints(),
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::TSpline;
     use super::*;
+    use crate::TSpline;
 
     #[test]
     fn it_has_valid_unit_square() {
-        let mesh = TSpline::<f64>::new_unit_square();
+        let mesh = TSpline::new_unit_square();
         assert_eq!(Ok(()), mesh.validate());
     }
 
     #[test]
     fn it_finds_edge_loops() {
-        let mesh = TSpline::<f64>::new_unit_square();
+        let mesh = TSpline::new_unit_square();
         assert_eq!(4, mesh.edge_loop(&mesh.edges[0]).collect::<Vec<_>>().len());
     }
 
     #[test]
     fn it_finds_connected_edges() {
-        let mesh = TSpline::<f64>::new_unit_square();
+        let mesh = TSpline::new_unit_square();
 
         let edges = mesh.connected_edges(VertID(0));
         assert_eq!(2, edges.len()); // find edge in both directions
@@ -383,7 +377,7 @@ mod tests {
 
     #[test]
     fn it_finds_vertex_in_direction() {
-        let mesh = TSpline::<f64>::new_unit_square();
+        let mesh = TSpline::new_unit_square();
 
         assert_eq!(
             Some(VertID(1)),
@@ -408,7 +402,7 @@ mod tests {
 
     #[test]
     fn it_can_trace_direct_knots() {
-        let mesh = TSpline::<f64>::new_unit_square();
+        let mesh = TSpline::new_unit_square();
 
         let trace = mesh.trace_knots(VertID(0), Direction::S, true);
         assert_eq!([Some(1), None], trace);
@@ -416,7 +410,7 @@ mod tests {
 
     #[test]
     fn it_can_infer_local_knots() {
-        let mesh = TSpline::<f64>::new_unit_square();
+        let mesh = TSpline::new_unit_square();
 
         assert_eq!(
             LocalKnots {

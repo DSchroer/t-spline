@@ -14,12 +14,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-use t_spline::control_mesh::ControlMesh;
 
-pub mod tessellate;
+use crate::Numeric;
+use crate::uv_mesh::{UVMesh, ValidationError};
+use nalgebra::Vector4;
 
-pub trait Op {
-    type Output;
+pub trait ControlMesh: UVMesh {
+    type Unit: Numeric + Send + Sync + 'static;
 
-    fn execute(&self, spline: &impl ControlMesh) -> Self::Output;
+    fn control_points(&self) -> &[Vector4<Self::Unit>];
+
+    fn validate(&self) -> Result<(), ValidationError> {
+        if self.control_points().len() != self.points().len() {
+            return Err(ValidationError::DisconnectedPoints());
+        }
+        UVMesh::validate(self)
+    }
 }

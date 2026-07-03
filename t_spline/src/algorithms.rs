@@ -121,13 +121,13 @@ pub fn subs<T: Numeric + 'static>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::TSpline;
     use crate::uv_mesh::UVMesh;
     use alloc::vec;
-    use crate::TSpline;
 
     #[test]
     pub fn it_can_find_points_on_a_square() {
-        let mesh = TSpline::<f64>::new_unit_square();
+        let mesh = TSpline::new_unit_square();
         let knots = mesh.local_knots();
         let points = vec![
             Vector4::new(0.0, 0.0, 0.0, 1.0),

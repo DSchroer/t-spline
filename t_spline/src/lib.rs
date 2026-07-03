@@ -21,9 +21,11 @@ extern crate alloc;
 
 pub mod algorithms;
 pub mod bounds;
+pub mod control_mesh;
 mod numeric;
 pub mod uv_mesh;
 
+use crate::control_mesh::ControlMesh;
 pub use crate::numeric::Numeric;
 use crate::uv_mesh::UVMesh;
 use crate::uv_mesh::half_edge::HalfEdge;
@@ -31,46 +33,24 @@ use crate::uv_mesh::ids::{EdgeID, VertID};
 use crate::uv_mesh::uv_point::UVPoint;
 use alloc::vec::Vec;
 pub use nalgebra::{Point3, Vector4};
+use num_traits::ToPrimitive;
 
 #[derive(Debug, Default, Clone)]
-pub struct TSpline<T> {
+pub struct TSpline {
     points: Vec<UVPoint>,
     edges: Vec<HalfEdge>,
-    control_points: Vec<Vector4<T>>,
+    control_points: Vec<Vector4<f64>>,
 }
 
-pub struct TSplineMut<'a, T> {
-    pub points: &'a mut Vec<UVPoint>,
-    pub edges: &'a mut Vec<HalfEdge>,
-    pub control_points: &'a mut Vec<Vector4<T>>,
-}
+impl ControlMesh for TSpline {
+    type Unit = f64;
 
-impl<'a, T> From<&'a mut TSpline<T>> for TSplineMut<'a, T> {
-    fn from(value: &'a mut TSpline<T>) -> Self {
-        TSplineMut {
-            points: &mut value.points,
-            edges: &mut value.edges,
-            control_points: &mut value.control_points,
-        }
-    }
-}
-
-impl<T> TSpline<T> {
-    pub fn control_points(&self) -> &[Vector4<T>] {
+    fn control_points(&self) -> &[Vector4<f64>] {
         &self.control_points
     }
-
-    pub fn edit<R>(&mut self, op: impl FnOnce(TSplineMut<'_, T>) -> R) -> R {
-        let r = op(self.into());
-
-        assert_eq!(self.points.len(), self.control_points.len());
-        self.validate().unwrap();
-
-        r
-    }
 }
 
-impl<T> UVMesh for TSpline<T> {
+impl UVMesh for TSpline {
     fn points(&self) -> &[UVPoint] {
         &self.points
     }
@@ -80,7 +60,7 @@ impl<T> UVMesh for TSpline<T> {
     }
 }
 
-impl<T: Numeric + 'static> TSpline<T> {
+impl TSpline {
     pub fn new_unit_square() -> Self {
         let mut mesh = TSpline {
             points: Vec::with_capacity(4),
@@ -98,10 +78,10 @@ impl<T: Numeric + 'static> TSpline<T> {
             });
 
             mesh.control_points.push(Vector4::new(
-                T::from_isize(s).unwrap(),
-                T::from_isize(t).unwrap(),
-                T::zero(),
-                T::one(),
+                s.to_f64().unwrap(),
+                t.to_f64().unwrap(),
+                0f64,
+                1f64,
             ));
         }
 

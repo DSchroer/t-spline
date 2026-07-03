@@ -22,3 +22,12 @@ pub enum Direction {
     /// The vertical direction in UV space
     T,
 }
+
+impl Direction {
+    pub fn opposite(&self) -> Direction {
+        match self {
+            Direction::S => Direction::T,
+            Direction::T => Direction::S,
+        }
+    }
+}
