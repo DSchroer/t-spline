@@ -4660,6 +4660,7 @@ dependencies = [
  "fixed",
  "num-traits",
  "rayon",
+ "smallvec",
  "t-spline",
  "t-spline-io",
  "thiserror 2.0.18",

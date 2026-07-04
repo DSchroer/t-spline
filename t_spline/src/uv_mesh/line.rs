@@ -28,6 +28,21 @@ impl Line<'_> {
         }
     }
 
+    pub fn direction(&self) -> Direction {
+        if self.0.s == self.1.s {
+            Direction::S
+        } else if self.0.t == self.1.t {
+            Direction::T
+        } else {
+            panic!("line is not axis aligned")
+        }
+    }
+
+    pub fn length(&self) -> isize {
+        let dir = self.direction().opposite();
+        self.max(dir) - self.min(dir)
+    }
+
     pub fn is_axis_aligned(&self, axis: Direction) -> bool {
         match axis {
             Direction::S => self.0.t == self.1.t,

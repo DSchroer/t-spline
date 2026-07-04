@@ -20,15 +20,20 @@ use t_spline::Point3;
 use t_spline::algorithms::subs;
 use t_spline::bounds::Bounded;
 use t_spline::control_mesh::ControlMesh;
-use t_spline::uv_mesh::LocalKnots;
 use t_spline::uv_mesh::ids::VertID;
+use t_spline::uv_mesh::{LocalKnots, ValidationError};
 
-pub fn tessellate<T: ControlMesh + Sync>(mesh: &T, resolution: usize) -> Vec<Point3<T::Unit>> {
+pub fn tessellate<T: ControlMesh + Sync>(
+    mesh: &T,
+    resolution: usize,
+) -> Result<Vec<Point3<T::Unit>>, ValidationError> {
+    mesh.validate_control_mesh()?;
+
     let bounds = mesh.bounds();
 
     let knot_cache: Vec<_> = knot_vectors(mesh);
 
-    (0..resolution * resolution)
+    Ok((0..resolution * resolution)
         .into_par_iter()
         .map(|i| {
             subs(
@@ -38,7 +43,7 @@ pub fn tessellate<T: ControlMesh + Sync>(mesh: &T, resolution: usize) -> Vec<Poi
             )
         })
         .filter_map(|p| p)
-        .collect()
+        .collect())
 }
 
 fn knot_vectors(mesh: &(impl ControlMesh + Sync)) -> Vec<LocalKnots> {
@@ -79,7 +84,7 @@ mod tests {
     #[test]
     pub fn it_can_tessellate_a_square() {
         let square = TSpline::new_unit_square();
-        let points = tessellate(&square, 2);
+        let points = tessellate(&square, 2).unwrap();
 
         assert_eq!(4, points.len());
 

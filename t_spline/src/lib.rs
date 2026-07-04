@@ -25,12 +25,12 @@ pub mod control_mesh;
 mod numeric;
 pub mod uv_mesh;
 
-use crate::control_mesh::ControlMesh;
+use crate::control_mesh::{ControlMesh, ControlMeshMut};
 pub use crate::numeric::Numeric;
-use crate::uv_mesh::UVMesh;
 use crate::uv_mesh::half_edge::HalfEdge;
 use crate::uv_mesh::ids::{EdgeID, VertID};
 use crate::uv_mesh::uv_point::UVPoint;
+use crate::uv_mesh::{UVMesh, UVMeshMut};
 use alloc::vec::Vec;
 pub use nalgebra::{Point3, Vector4};
 use num_traits::ToPrimitive;
@@ -40,6 +40,33 @@ pub struct TSpline {
     points: Vec<UVPoint>,
     edges: Vec<HalfEdge>,
     control_points: Vec<Vector4<f64>>,
+}
+
+impl UVMeshMut for TSpline {
+    fn push_point(&mut self, point: UVPoint) -> VertID {
+        self.points.push(point);
+        VertID(self.points.len() - 1)
+    }
+
+    fn push_edge(&mut self, edge: HalfEdge) -> EdgeID {
+        self.edges.push(edge);
+        EdgeID(self.edges.len() - 1)
+    }
+
+    fn edge_mut(&mut self, id: EdgeID) -> Option<&mut HalfEdge> {
+        self.edges.get_mut(id.0)
+    }
+}
+
+impl ControlMeshMut for TSpline {
+    fn push_control_point(&mut self, point: Vector4<Self::Unit>) -> VertID {
+        self.control_points.push(point);
+        VertID(self.control_points.len() - 1)
+    }
+
+    fn control_point_mut(&mut self, id: VertID) -> Option<&mut Vector4<Self::Unit>> {
+        self.control_points.get_mut(id.0)
+    }
 }
 
 impl ControlMesh for TSpline {

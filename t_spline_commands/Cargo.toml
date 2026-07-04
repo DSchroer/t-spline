@@ -12,6 +12,7 @@ readme = "../README.md"
 rayon = "1.11.0"
 thiserror = "2.0.18"
 t-spline = { path = "../t_spline", version = "0.1.0" }
+smallvec = "1.15.1"
 num-traits = "0.2.19"
 
 [dev-dependencies]

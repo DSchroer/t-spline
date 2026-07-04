@@ -31,4 +31,11 @@ impl UVPoint {
             Direction::T => self.t,
         }
     }
+
+    pub fn add_in_dir(&mut self, direction: Direction, value: isize) {
+        match direction {
+            Direction::S => self.s += value,
+            Direction::T => self.t += value,
+        }
+    }
 }

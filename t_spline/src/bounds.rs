@@ -17,6 +17,7 @@
 use crate::Numeric;
 use crate::control_mesh::ControlMesh;
 use crate::uv_mesh::UVMesh;
+use crate::uv_mesh::half_edge::HalfEdge;
 use crate::uv_mesh::uv_point::UVPoint;
 
 #[derive(Debug, Clone, Copy)]
@@ -62,6 +63,14 @@ impl<T: Numeric> Bounds<T> {
         let t = self.t.0 + (v_i * (self.t.1 - self.t.0)) / denom;
 
         (s, t)
+    }
+
+    pub fn add_face(&mut self, mesh: &impl UVMesh, edge: &HalfEdge) {
+        for v in mesh.edge_loop(edge) {
+            if let Some(p) = mesh.point(v.origin) {
+                self.add_point(p)
+            }
+        }
     }
 
     pub fn add_mesh(&mut self, mesh: &impl UVMesh) {

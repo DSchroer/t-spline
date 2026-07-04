@@ -23,19 +23,30 @@ use bevy::{
 };
 use t_spline::control_mesh::ControlMesh;
 use t_spline::uv_mesh::UVMesh;
+use t_spline::uv_mesh::ids::EdgeID;
 use t_spline::{Point3, TSpline};
+use t_spline_commands::align_control_points_to_cage::align_control_points_to_cage;
+use t_spline_commands::extrude_edge::extrude_edge;
 use t_spline_commands::tessellate::tessellate;
 
 fn main() -> Result<()> {
-    let spline = TSpline::new_unit_square();
-    let points = tessellate(&spline, 30);
+    let mut spline = TSpline::new_unit_square();
+    extrude_edge(&mut spline, EdgeID(3))?;
+    align_control_points_to_cage(&mut spline)?;
+
+    let points = tessellate(&spline, 30)?;
+    // let points = vec![];
 
     App::new()
         .insert_resource(ClearColor(tailwind::BLUE_50.into()))
         .insert_resource(Render { points, spline })
         .add_plugins(DefaultPlugins)
         .add_plugins(FreeCameraPlugin)
-        .add_systems(Startup, (setup, draw_points, draw_uv_controls))
+        .add_systems(
+            Startup,
+            (setup, draw_points, draw_uv_controls, draw_control),
+        )
+        .add_systems(Update, (draw_cage, draw_uv_cage))
         .run();
 
     Ok(())
@@ -128,25 +139,32 @@ fn draw_control(
     }
 }
 
-// fn draw_cage(render: Res<Render>, mut gizmos: Gizmos) {
-//     for e in &render.spline.mesh().edges {
-//         let from = render.spline.mesh().point(e.origin);
-//         let to = render
-//             .spline
-//             .mesh()
-//             .vertex(render.spline.mesh().edge(e.next).origin);
-//         gizmos.line(
-//             Vec3::new(
-//                 from.geometry.x as f32,
-//                 from.geometry.y as f32,
-//                 from.geometry.z as f32,
-//             ),
-//             Vec3::new(
-//                 to.geometry.x as f32,
-//                 to.geometry.y as f32,
-//                 to.geometry.z as f32,
-//             ),
-//             tailwind::GREEN_500,
-//         );
-//     }
-// }
+fn draw_uv_cage(render: Res<Render>, mut gizmos: Gizmos) {
+    for e in render.spline.edges() {
+        let from = render.spline.point(e.origin).unwrap();
+        let to = render
+            .spline
+            .point(render.spline.edge(e.next).unwrap().origin)
+            .unwrap();
+        gizmos.line(
+            Vec3::new(from.s as f32, from.t as f32, 0f32),
+            Vec3::new(to.s as f32, to.t as f32, 0f32),
+            tailwind::GREEN_500,
+        );
+    }
+}
+
+fn draw_cage(render: Res<Render>, mut gizmos: Gizmos) {
+    for e in render.spline.edges() {
+        let from = render.spline.control_point(e.origin).unwrap();
+        let to = render
+            .spline
+            .control_point(render.spline.edge(e.next).unwrap().origin)
+            .unwrap();
+        gizmos.line(
+            Vec3::new(from.x as f32, from.y as f32, from.z as f32),
+            Vec3::new(to.x as f32, to.y as f32, to.z as f32),
+            tailwind::RED_500,
+        );
+    }
+}

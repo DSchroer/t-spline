@@ -49,6 +49,12 @@ pub struct LocalKnots {
     pub t_knots: KnotVector,
 }
 
+pub trait UVMeshMut: UVMesh {
+    fn push_point(&mut self, point: UVPoint) -> VertID;
+    fn push_edge(&mut self, edge: HalfEdge) -> EdgeID;
+    fn edge_mut(&mut self, id: EdgeID) -> Option<&mut HalfEdge>;
+}
+
 pub trait UVMesh {
     fn points(&self) -> &[UVPoint];
     fn edges(&self) -> &[HalfEdge];
@@ -178,7 +184,7 @@ pub trait UVMesh {
             (Some(n_0), None) => [n_0, c, c, c, c],
             (None, Some(p_0)) => [c, c, c, c, p_0],
             (Some(n_0), Some(p_0)) => [neg[1].unwrap_or(n_0), n_0, c, p_0, pos[1].unwrap_or(p_0)],
-            _ => unreachable!("trace can not miss knot and find next"),
+            (None, None) => [c, c, c, c, c],
         }
     }
 
@@ -284,12 +290,27 @@ pub trait UVMesh {
         None
     }
 
-    fn validate(&self) -> Result<(), ValidationError> {
+    fn validate_uv_mesh_integrity(&self) -> Result<(), ValidationError> {
         for point in self.points() {
             if let Some(edge) = self.edge(point.outgoing_edge) {
                 let l = self.line(edge);
                 if !l.is_orthogonal() {
                     return Err(ValidationError::NonOrthogonal());
+                }
+                if l.length() == 0 {
+                    return Err(ValidationError::ZeroLengthEdge());
+                }
+
+                if let Some(twin_id) = edge.twin {
+                    if let Some(twin) = self.edge(twin_id) {
+                        let l = self.line(twin);
+                        if !l.is_orthogonal() {
+                            return Err(ValidationError::NonOrthogonal());
+                        }
+                        if l.length() == 0 {
+                            return Err(ValidationError::ZeroLengthEdge());
+                        }
+                    }
                 }
             } else {
                 return Err(ValidationError::InvalidOutgoingEdge());
@@ -301,7 +322,9 @@ pub trait UVMesh {
                 return Err(ValidationError::InvalidOrigin());
             }
 
-            if self.edge(edge.next).is_none() {
+            if let Some(_) = self.edge(edge.next) {
+                // TODO: check next and prev
+            } else {
                 return Err(ValidationError::InvalidNextEdge());
             }
 
@@ -310,7 +333,21 @@ pub trait UVMesh {
             }
 
             if let Some(twin) = edge.twin {
-                if self.edge(twin).is_none() {
+                if let Some(twin) = self.edge(twin) {
+                    if let Some(_origin_twin) = twin.twin {
+                        // TODO: check if origin_twin == edge.id
+                    } else {
+                        return Err(ValidationError::InvalidTwinEdge());
+                    }
+
+                    if edge.origin != self.edge(twin.next).unwrap().origin {
+                        return Err(ValidationError::MisalignedTwin());
+                    }
+
+                    if twin.origin != self.edge(edge.next).unwrap().origin {
+                        return Err(ValidationError::MisalignedTwin());
+                    }
+                } else {
                     return Err(ValidationError::InvalidTwinEdge());
                 }
             }
@@ -336,6 +373,8 @@ pub enum ValidationError {
     NonManifold(),
     #[error("edge uv points are not othogonal")]
     NonOrthogonal(),
+    #[error("edge must have a length")]
+    ZeroLengthEdge(),
     #[error("outgoing edge is an invalid reference")]
     InvalidOutgoingEdge(),
     #[error("origin is an invalid reference")]
@@ -348,6 +387,8 @@ pub enum ValidationError {
     InvalidTwinEdge(),
     #[error("points and control points are mismatched")]
     DisconnectedPoints(),
+    #[error("twin does not align")]
+    MisalignedTwin(),
 }
 
 #[cfg(test)]
@@ -358,7 +399,7 @@ mod tests {
     #[test]
     fn it_has_valid_unit_square() {
         let mesh = TSpline::new_unit_square();
-        assert_eq!(Ok(()), mesh.validate());
+        assert_eq!(Ok(()), mesh.validate_uv_mesh_integrity());
     }
 
     #[test]

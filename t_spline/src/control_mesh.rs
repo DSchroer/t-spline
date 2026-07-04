@@ -16,18 +16,28 @@
  */
 
 use crate::Numeric;
-use crate::uv_mesh::{UVMesh, ValidationError};
+use crate::uv_mesh::ids::VertID;
+use crate::uv_mesh::{UVMesh, UVMeshMut, ValidationError};
 use nalgebra::Vector4;
+
+pub trait ControlMeshMut: ControlMesh + UVMeshMut {
+    fn push_control_point(&mut self, point: Vector4<Self::Unit>) -> VertID;
+    fn control_point_mut(&mut self, id: VertID) -> Option<&mut Vector4<Self::Unit>>;
+}
 
 pub trait ControlMesh: UVMesh {
     type Unit: Numeric + Send + Sync + 'static;
 
     fn control_points(&self) -> &[Vector4<Self::Unit>];
 
-    fn validate(&self) -> Result<(), ValidationError> {
+    fn control_point(&self, id: VertID) -> Option<&Vector4<Self::Unit>> {
+        self.control_points().get(id.0)
+    }
+
+    fn validate_control_mesh(&self) -> Result<(), ValidationError> {
         if self.control_points().len() != self.points().len() {
             return Err(ValidationError::DisconnectedPoints());
         }
-        UVMesh::validate(self)
+        UVMesh::validate_uv_mesh_integrity(self)
     }
 }
