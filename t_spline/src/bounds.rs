@@ -66,7 +66,7 @@ impl<T: Numeric> Bounds<T> {
     }
 
     pub fn add_face(&mut self, mesh: &impl UVMesh, edge: &HalfEdge) {
-        for v in mesh.edge_loop(edge) {
+        for (_, v) in mesh.edge_loop(edge) {
             if let Some(p) = mesh.point(v.origin) {
                 self.add_point(p)
             }

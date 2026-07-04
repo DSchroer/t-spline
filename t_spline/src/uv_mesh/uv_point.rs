@@ -24,18 +24,60 @@ pub struct UVPoint {
     pub outgoing_edge: EdgeID,
 }
 
-impl UVPoint {
-    pub fn value_in_dir(&self, direction: Direction) -> isize {
+impl UVCoord for UVPoint {
+    fn s(&self) -> isize {
+        self.s
+    }
+
+    fn s_mut(&mut self) -> &mut isize {
+        &mut self.s
+    }
+
+    fn t(&self) -> isize {
+        self.t
+    }
+
+    fn t_mut(&mut self) -> &mut isize {
+        &mut self.t
+    }
+}
+
+impl UVCoord for (isize, isize) {
+    fn s(&self) -> isize {
+        self.0
+    }
+
+    fn s_mut(&mut self) -> &mut isize {
+        &mut self.0
+    }
+
+    fn t(&self) -> isize {
+        self.1
+    }
+
+    fn t_mut(&mut self) -> &mut isize {
+        &mut self.1
+    }
+}
+
+pub trait UVCoord: Clone {
+    fn s(&self) -> isize;
+    fn s_mut(&mut self) -> &mut isize;
+
+    fn t(&self) -> isize;
+    fn t_mut(&mut self) -> &mut isize;
+
+    fn value_in_dir(&self, direction: Direction) -> isize {
         match direction {
-            Direction::S => self.s,
-            Direction::T => self.t,
+            Direction::S => self.s(),
+            Direction::T => self.t(),
         }
     }
 
-    pub fn add_in_dir(&mut self, direction: Direction, value: isize) {
+    fn add_in_dir(&mut self, direction: Direction, value: isize) {
         match direction {
-            Direction::S => self.s += value,
-            Direction::T => self.t += value,
+            Direction::S => *self.s_mut() += value,
+            Direction::T => *self.t_mut() += value,
         }
     }
 }

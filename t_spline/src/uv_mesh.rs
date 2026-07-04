@@ -25,7 +25,8 @@ use crate::uv_mesh::direction::Direction;
 use crate::uv_mesh::half_edge::HalfEdge;
 use crate::uv_mesh::ids::{EdgeID, VertID};
 use crate::uv_mesh::line::Line;
-use crate::uv_mesh::uv_point::UVPoint;
+use crate::uv_mesh::uv_point::{UVCoord, UVPoint};
+use alloc::collections::BTreeSet;
 use alloc::vec::Vec;
 use smallvec::SmallVec;
 use thiserror::Error;
@@ -131,14 +132,15 @@ pub trait UVMesh {
         )
     }
 
-    fn edge_loop<'a>(&'a self, edge: &'a HalfEdge) -> impl Iterator<Item = &'a HalfEdge> {
+    fn edge_loop<'a>(&'a self, edge: &'a HalfEdge) -> impl Iterator<Item = (EdgeID, &'a HalfEdge)> {
         let start = edge.origin;
         let mut current = edge;
         let mut edges = Vec::new();
 
         loop {
+            let next_id = current.next;
             current = self.next_edge(&current);
-            edges.push(current);
+            edges.push((next_id, current));
 
             if current.origin == start {
                 break;
@@ -158,6 +160,45 @@ pub trait UVMesh {
                 edge.origin
             }
         })
+    }
+
+    /// The distinct list of faces within the mesh, each represented by a unique edge
+    fn faces(&self) -> impl Iterator<Item = EdgeID> {
+        let mut faces = Vec::new();
+        let mut seen = BTreeSet::new();
+
+        for (i, edge) in self.edges().iter().enumerate() {
+            if seen.contains(&EdgeID(i)) {
+                continue;
+            } else {
+                faces.push(EdgeID(i));
+            }
+
+            for (i, _) in self.edge_loop(edge) {
+                if !seen.contains(&i) {
+                    seen.insert(i);
+                }
+            }
+        }
+
+        faces.into_iter()
+    }
+
+    fn contains_uv(&self, point: (isize, isize)) -> bool {
+        let mut intersections = 0;
+        for edge in self.edges() {
+            let line = self.line(edge);
+
+            if line.is_touching(&point) {
+                return true; // on the edge, must be inside shape
+            }
+
+            if line.intersection(&point, Direction::T, true).is_some() {
+                intersections += 1;
+            }
+        }
+
+        intersections % 2 == 1
     }
 
     /// Infers the local knot vectors for a specific control point.
@@ -184,7 +225,7 @@ pub trait UVMesh {
             (Some(n_0), None) => [n_0, c, c, c, c],
             (None, Some(p_0)) => [c, c, c, c, p_0],
             (Some(n_0), Some(p_0)) => [neg[1].unwrap_or(n_0), n_0, c, p_0, pos[1].unwrap_or(p_0)],
-            (None, None) => [c, c, c, c, c],
+            (None, None) => unreachable!(),
         }
     }
 
@@ -240,8 +281,12 @@ pub trait UVMesh {
         axis: Direction,
         positive: bool,
     ) -> Option<UVPoint> {
-        for line in self.edge_loop(edge).map(|e| self.line(e)) {
-            if let Some(intersection) = line.intersects(start, axis, positive) {
+        for line in self.edge_loop(edge).map(|(_, e)| self.line(e)) {
+            if line.is_touching(start) {
+                continue;
+            }
+
+            if let Some(intersection) = line.intersection(start, axis, positive) {
                 return Some(intersection);
             }
         }
@@ -481,5 +526,12 @@ mod tests {
             },
             mesh.infer_local_knots(VertID(2))
         );
+    }
+
+    #[test]
+    fn it_finds_faces() {
+        let mesh = TSpline::new_unit_square();
+
+        assert_eq!(1, mesh.faces().count());
     }
 }

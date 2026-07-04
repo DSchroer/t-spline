@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 use crate::uv_mesh::direction::Direction;
-use crate::uv_mesh::uv_point::UVPoint;
+use crate::uv_mesh::uv_point::{UVCoord, UVPoint};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Line<'a>(pub &'a UVPoint, pub &'a UVPoint);
@@ -81,7 +81,29 @@ impl Line<'_> {
         }
     }
 
-    pub fn intersects(&self, origin: &UVPoint, axis: Direction, positive: bool) -> Option<UVPoint> {
+    pub fn is_touching<T: UVCoord>(&self, origin: &T) -> bool {
+        let axis = self.direction();
+
+        let line_coord = self.axis_coord(axis.opposite());
+        let origin_axis_coord = origin.value_in_dir(axis);
+        let origin_opposite_coord = origin.value_in_dir(axis.opposite());
+
+        // bounds check
+        if origin_opposite_coord < self.min(axis.opposite())
+            || origin_opposite_coord > self.max(axis.opposite())
+        {
+            return false;
+        }
+
+        line_coord == origin_axis_coord
+    }
+
+    pub fn intersection<T: UVCoord>(
+        &self,
+        origin: &T,
+        axis: Direction,
+        positive: bool,
+    ) -> Option<T> {
         // Check if the line is collinear with the ray direction (i.e., it's aligned)
         if self.is_axis_aligned(axis) {
             return None; // The line is aligned with the ray, so no intersection
@@ -91,8 +113,8 @@ impl Line<'_> {
         let origin_axis_coord = origin.value_in_dir(axis);
         let origin_opposite_coord = origin.value_in_dir(axis.opposite());
 
-        // check the origin is on the line
-        if line_coord == origin_axis_coord {
+        // check if we are touching the line
+        if self.is_touching(origin) {
             return None;
         }
 
@@ -116,8 +138,8 @@ impl Line<'_> {
         // Create a new point at the intersection (this is where the ray intersects with the infinite line)
         let mut intersection_point = origin.clone();
         match axis {
-            Direction::S => intersection_point.s = line_coord,
-            Direction::T => intersection_point.t = line_coord,
+            Direction::S => *intersection_point.s_mut() = line_coord,
+            Direction::T => *intersection_point.t_mut() = line_coord,
         }
 
         Some(intersection_point)
@@ -146,49 +168,61 @@ mod tests {
     }
 
     #[test]
+    fn it_touches_along_t() {
+        let line = line!((0, 1), (2, 1));
+
+        // check points on the line
+        assert!(!line.is_touching(&point!(-1, 1)));
+        assert!(line.is_touching(&point!(0, 1)));
+        assert!(line.is_touching(&point!(1, 1)));
+        assert!(line.is_touching(&point!(2, 1)));
+        assert!(!line.is_touching(&point!(3, 1)));
+    }
+
+    #[test]
     fn it_intersects_line_along_t() {
         let line = line!((0, 1), (2, 1));
 
         // check points along the line
         assert_eq!(
             Some(point!(0, 1)),
-            line.intersects(&point!(0, 0), Direction::T, true)
+            line.intersection(&point!(0, 0), Direction::T, true)
         );
         assert_eq!(
             Some(point!(1, 1)),
-            line.intersects(&point!(1, 0), Direction::T, true)
+            line.intersection(&point!(1, 0), Direction::T, true)
         );
         assert_eq!(
             Some(point!(2, 1)),
-            line.intersects(&point!(2, 0), Direction::T, true)
+            line.intersection(&point!(2, 0), Direction::T, true)
         );
 
         // check points on the line
-        assert_eq!(None, line.intersects(&point!(0, 1), Direction::T, true));
-        assert_eq!(None, line.intersects(&point!(1, 1), Direction::T, true));
-        assert_eq!(None, line.intersects(&point!(2, 1), Direction::T, true));
+        assert_eq!(None, line.intersection(&point!(0, 1), Direction::T, true));
+        assert_eq!(None, line.intersection(&point!(1, 1), Direction::T, true));
+        assert_eq!(None, line.intersection(&point!(2, 1), Direction::T, true));
 
         // check past boundaries
-        assert_eq!(None, line.intersects(&point!(-1, 0), Direction::T, true));
-        assert_eq!(None, line.intersects(&point!(3, 0), Direction::T, true));
+        assert_eq!(None, line.intersection(&point!(-1, 0), Direction::T, true));
+        assert_eq!(None, line.intersection(&point!(3, 0), Direction::T, true));
 
         // check backwards ray
-        assert_eq!(None, line.intersects(&point!(0, 0), Direction::T, false));
-        assert_eq!(None, line.intersects(&point!(1, 0), Direction::T, false));
-        assert_eq!(None, line.intersects(&point!(2, 0), Direction::T, false));
+        assert_eq!(None, line.intersection(&point!(0, 0), Direction::T, false));
+        assert_eq!(None, line.intersection(&point!(1, 0), Direction::T, false));
+        assert_eq!(None, line.intersection(&point!(2, 0), Direction::T, false));
 
         // check backwards ray from other side
         assert_eq!(
             Some(point!(0, 1)),
-            line.intersects(&point!(0, 2), Direction::T, false)
+            line.intersection(&point!(0, 2), Direction::T, false)
         );
         assert_eq!(
             Some(point!(1, 1)),
-            line.intersects(&point!(1, 2), Direction::T, false)
+            line.intersection(&point!(1, 2), Direction::T, false)
         );
         assert_eq!(
             Some(point!(2, 1)),
-            line.intersects(&point!(2, 2), Direction::T, false)
+            line.intersection(&point!(2, 2), Direction::T, false)
         );
     }
 
@@ -199,43 +233,43 @@ mod tests {
         // check points along the line
         assert_eq!(
             Some(point!(1, 0)),
-            line.intersects(&point!(0, 0), Direction::S, true)
+            line.intersection(&point!(0, 0), Direction::S, true)
         );
         assert_eq!(
             Some(point!(1, 1)),
-            line.intersects(&point!(0, 1), Direction::S, true)
+            line.intersection(&point!(0, 1), Direction::S, true)
         );
         assert_eq!(
             Some(point!(1, 2)),
-            line.intersects(&point!(0, 2), Direction::S, true)
+            line.intersection(&point!(0, 2), Direction::S, true)
         );
 
         // check points on the line
-        assert_eq!(None, line.intersects(&point!(1, 0), Direction::S, true));
-        assert_eq!(None, line.intersects(&point!(1, 1), Direction::S, true));
-        assert_eq!(None, line.intersects(&point!(1, 2), Direction::S, true));
+        assert_eq!(None, line.intersection(&point!(1, 0), Direction::S, true));
+        assert_eq!(None, line.intersection(&point!(1, 1), Direction::S, true));
+        assert_eq!(None, line.intersection(&point!(1, 2), Direction::S, true));
 
         // check past boundaries
-        assert_eq!(None, line.intersects(&point!(0, -1), Direction::S, true));
-        assert_eq!(None, line.intersects(&point!(0, 3), Direction::S, true));
+        assert_eq!(None, line.intersection(&point!(0, -1), Direction::S, true));
+        assert_eq!(None, line.intersection(&point!(0, 3), Direction::S, true));
 
         // check backwards ray
-        assert_eq!(None, line.intersects(&point!(0, 0), Direction::S, false));
-        assert_eq!(None, line.intersects(&point!(0, 1), Direction::S, false));
-        assert_eq!(None, line.intersects(&point!(0, 2), Direction::S, false));
+        assert_eq!(None, line.intersection(&point!(0, 0), Direction::S, false));
+        assert_eq!(None, line.intersection(&point!(0, 1), Direction::S, false));
+        assert_eq!(None, line.intersection(&point!(0, 2), Direction::S, false));
 
         // check backwards ray from other side
         assert_eq!(
             Some(point!(1, 0)),
-            line.intersects(&point!(2, 0), Direction::S, false)
+            line.intersection(&point!(2, 0), Direction::S, false)
         );
         assert_eq!(
             Some(point!(1, 1)),
-            line.intersects(&point!(2, 1), Direction::S, false)
+            line.intersection(&point!(2, 1), Direction::S, false)
         );
         assert_eq!(
             Some(point!(1, 2)),
-            line.intersects(&point!(2, 2), Direction::S, false)
+            line.intersection(&point!(2, 2), Direction::S, false)
         );
     }
 }

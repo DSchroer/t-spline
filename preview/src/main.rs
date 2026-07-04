@@ -21,9 +21,9 @@ use bevy::{
     color::palettes::tailwind,
     prelude::*,
 };
-use t_spline::control_mesh::ControlMesh;
-use t_spline::uv_mesh::UVMesh;
-use t_spline::uv_mesh::ids::EdgeID;
+use t_spline::control_mesh::{ControlMesh, ControlMeshMut};
+use t_spline::uv_mesh::ids::{EdgeID, VertID};
+use t_spline::uv_mesh::{UVMesh, UVMeshMut};
 use t_spline::{Point3, TSpline};
 use t_spline_commands::align_control_points_to_cage::align_control_points_to_cage;
 use t_spline_commands::extrude_edge::extrude_edge;
@@ -31,11 +31,15 @@ use t_spline_commands::tessellate::tessellate;
 
 fn main() -> Result<()> {
     let mut spline = TSpline::new_unit_square();
+    extrude_edge(&mut spline, EdgeID(0))?;
+    extrude_edge(&mut spline, EdgeID(1))?;
+    extrude_edge(&mut spline, EdgeID(2))?;
     extrude_edge(&mut spline, EdgeID(3))?;
+    spline.control_point_mut(VertID(0)).unwrap().z = 1.;
+
     align_control_points_to_cage(&mut spline)?;
 
-    let points = tessellate(&spline, 30)?;
-    // let points = vec![];
+    let points = tessellate(&spline, 50)?;
 
     App::new()
         .insert_resource(ClearColor(tailwind::BLUE_50.into()))

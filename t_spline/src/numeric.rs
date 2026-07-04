@@ -39,6 +39,7 @@ pub trait Numeric:
     }
 
     fn delta() -> Self;
+    fn round(self) -> Self;
 }
 
 macro_rules! impl_numeric_float {
@@ -46,6 +47,10 @@ macro_rules! impl_numeric_float {
         $(
             impl Numeric for $t {
                 fn delta() -> Self { <$t>::EPSILON }
+
+                fn round(self) -> Self {
+                    <$t>::round(self)
+                }
             }
         )*
     }
@@ -60,11 +65,15 @@ mod fixed_impl {
     macro_rules! impl_numeric_fixed {
         ($($t:ident),*) => {
             $(
-                impl<Frac: fixed::types::extra::LeEqU32> Numeric for fixed::$t<Frac>
+                impl<Frac> Numeric for fixed::$t<Frac>
                 where
                     fixed::$t<Frac>: fixed::traits::FixedSigned + Num + Signed + NumAssign + FromPrimitive + Bounded
                 {
                     fn delta() -> Self { Self::DELTA }
+
+                    fn round(self) -> Self {
+                        self.round()
+                    }
                 }
             )*
         }

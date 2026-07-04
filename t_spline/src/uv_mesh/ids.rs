@@ -24,7 +24,7 @@ impl From<VertID> for usize {
     }
 }
 
-#[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)]
+#[derive(Eq, PartialEq, PartialOrd, Copy, Clone, Hash, Debug, Ord)]
 pub struct EdgeID(pub usize);
 
 impl From<EdgeID> for usize {
