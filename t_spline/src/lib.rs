@@ -22,6 +22,7 @@ extern crate alloc;
 pub mod algorithms;
 pub mod bounds;
 pub mod control_mesh;
+pub mod line;
 mod numeric;
 pub mod uv_mesh;
 

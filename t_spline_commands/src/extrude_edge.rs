@@ -37,8 +37,9 @@ pub fn extrude_edge(mesh: &mut impl ControlMeshMut, edge_id: EdgeID) -> Result<(
         return Err(ExtrudeError::HasTwin());
     }
 
-    let line = dbg!(mesh.line(edge));
+    let line = mesh.line(edge);
     let axis = line.direction();
+    let line = mesh.start_end(edge);
 
     let mut offset = 1;
     let edge_axis = mesh

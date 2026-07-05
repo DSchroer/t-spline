@@ -16,37 +16,58 @@
  */
 use crate::uv_mesh::direction::Direction;
 use crate::uv_mesh::uv_point::{UVCoord, UVPoint};
+use nalgebra::{Scalar, Vector2};
+use num_traits::{Num, NumAssign};
 
 #[derive(Copy, Clone, Debug)]
-pub struct Line<'a>(pub &'a UVPoint, pub &'a UVPoint);
+pub struct Line<T>(Vector2<T>, Vector2<T>);
 
-impl Line<'_> {
-    pub fn delta(&self, axis: Direction) -> isize {
+impl Line<isize> {
+    pub fn from_uv_points(a: &UVPoint, b: &UVPoint) -> Self {
+        Self(Vector2::new(a.s, a.t), Vector2::new(b.s, b.t))
+    }
+}
+
+impl<T: Scalar + Copy + Num + NumAssign + Ord + 'static> Line<T> {
+    pub fn s0(&self) -> T {
+        self.0.x
+    }
+    pub fn t0(&self) -> T {
+        self.0.y
+    }
+    pub fn s1(&self) -> T {
+        self.1.x
+    }
+    pub fn t1(&self) -> T {
+        self.1.y
+    }
+
+    pub fn delta(&self, axis: Direction) -> T {
         match axis {
-            Direction::S => self.0.s - self.1.s,
-            Direction::T => self.0.t - self.1.t,
+            Direction::S => self.s0() - self.s1(),
+            Direction::T => self.t0() - self.t1(),
         }
     }
 
     pub fn direction(&self) -> Direction {
-        if self.0.s == self.1.s {
+        if self.s0() == self.s1() {
             Direction::S
-        } else if self.0.t == self.1.t {
+        } else if self.t1() == self.t1() {
             Direction::T
         } else {
             panic!("line is not axis aligned")
         }
     }
 
-    pub fn length(&self) -> isize {
+    pub fn length(&self) -> T {
         let dir = self.direction().opposite();
         self.max(dir) - self.min(dir)
     }
 
     pub fn is_axis_aligned(&self, axis: Direction) -> bool {
         match axis {
-            Direction::S => self.0.t == self.1.t,
-            Direction::T => self.0.s == self.1.s,
+            Direction::S => self.t0() == self.t1(),
+            Direction::T => self.s0() == self.s1(),
         }
     }
 
@@ -54,34 +75,34 @@ impl Line<'_> {
         self.is_axis_aligned(Direction::S) || self.is_axis_aligned(Direction::T)
     }
 
-    fn min(&self, axis: Direction) -> isize {
+    fn min(&self, axis: Direction) -> T {
         debug_assert!(
             self.is_axis_aligned(axis),
             "line {self:?} is aligned along {axis:?}, can not take min"
         );
-        isize::min(self.0.value_in_dir(axis), self.1.value_in_dir(axis))
+        T::min(self.0.value_in_dir(axis), self.1.value_in_dir(axis))
     }
 
-    fn max(&self, axis: Direction) -> isize {
+    fn max(&self, axis: Direction) -> T {
         debug_assert!(
             self.is_axis_aligned(axis),
             "line {self:?} is aligned along {axis:?}, can not take max"
         );
-        isize::max(self.0.value_in_dir(axis), self.1.value_in_dir(axis))
+        T::max(self.0.value_in_dir(axis), self.1.value_in_dir(axis))
     }
 
-    fn axis_coord(&self, axis: Direction) -> isize {
+    fn axis_coord(&self, axis: Direction) -> T {
         debug_assert!(
             self.is_axis_aligned(axis),
             "line {self:?} is not aligned along {axis:?}"
         );
         match axis {
-            Direction::S => self.0.t,
-            Direction::T => self.0.s,
+            Direction::S => self.t0(),
+            Direction::T => self.s0(),
         }
     }
 
-    pub fn is_touching<T: UVCoord>(&self, origin: &T) -> bool {
+    pub fn is_touching<C: UVCoord<T>>(&self, origin: &C) -> bool {
         let axis = self.direction();
 
         let line_coord = self.axis_coord(axis.opposite());
@@ -98,12 +119,12 @@ impl Line<'_> {
         line_coord == origin_axis_coord
     }
 
-    pub fn intersection<T: UVCoord>(
+    pub fn intersection<C: UVCoord<T>>(
         &self,
-        origin: &T,
+        origin: &C,
         axis: Direction,
         positive: bool,
-    ) -> Option<T> {
+    ) -> Option<C> {
         // Check if the line is collinear with the ray direction (i.e., it's aligned)
         if self.is_axis_aligned(axis) {
             return None; // The line is aligned with the ray, so no intersection
@@ -163,7 +184,7 @@ mod tests {
 
     macro_rules! line {
         (($s1: literal, $t1: literal), ($s2: literal, $t2: literal)) => {
-            Line(&point!($s1, $t1), &point!($s2, $t2))
+            Line::from_uv_points(&point!($s1, $t1), &point!($s2, $t2))
         };
     }
 

@@ -18,13 +18,12 @@
 pub mod direction;
 pub mod half_edge;
 pub mod ids;
-mod line;
 pub mod uv_point;
 
+use crate::line::Line;
 use crate::uv_mesh::direction::Direction;
 use crate::uv_mesh::half_edge::HalfEdge;
 use crate::uv_mesh::ids::{EdgeID, VertID};
-use crate::uv_mesh::line::Line;
 use crate::uv_mesh::uv_point::{UVCoord, UVPoint};
 use alloc::collections::BTreeSet;
 use alloc::vec::Vec;
@@ -125,8 +124,15 @@ pub trait UVMesh {
             .collect()
     }
 
-    fn line(&self, edge: &HalfEdge) -> Line<'_> {
-        Line(
+    fn line(&self, edge: &HalfEdge) -> Line<isize> {
+        Line::from_uv_points(
+            self.point(edge.origin).expect(INVALID_MESH),
+            self.point(self.next_edge(edge).origin).expect(INVALID_MESH),
+        )
+    }
+
+    fn start_end(&self, edge: &HalfEdge) -> (&UVPoint, &UVPoint) {
+        (
             self.point(edge.origin).expect(INVALID_MESH),
             self.point(self.next_edge(edge).origin).expect(INVALID_MESH),
         )
@@ -282,7 +288,7 @@ pub trait UVMesh {
         positive: bool,
     ) -> Option<UVPoint> {
         for line in self.edge_loop(edge).map(|(_, e)| self.line(e)) {
-            if line.is_touching(start) {
+            if line.is_touching::<UVPoint>(start) {
                 continue;
             }
 
@@ -324,7 +330,7 @@ pub trait UVMesh {
         let v = self.point(v_id).expect(INVALID_MESH);
         for vertex in self.connected_verteces(v_id) {
             let dest_v = &self.point(vertex).expect(INVALID_MESH);
-            let l = Line(dest_v, v);
+            let l = Line::from_uv_points(dest_v, v);
             let delta = l.delta(axis);
 
             if l.is_axis_aligned(axis) && ((positive && delta > 0) || (!positive && delta < 0)) {

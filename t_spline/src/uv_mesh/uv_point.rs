@@ -16,6 +16,8 @@
  */
 use crate::uv_mesh::direction::Direction;
 use crate::uv_mesh::ids::EdgeID;
+use nalgebra::{Scalar, Vector2};
+use num_traits::NumAssign;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct UVPoint {
@@ -24,7 +26,25 @@ pub struct UVPoint {
     pub outgoing_edge: EdgeID,
 }
 
-impl UVCoord for UVPoint {
+impl<T: Scalar + Copy + NumAssign> UVCoord<T> for Vector2<T> {
+    fn s(&self) -> T {
+        self.x
+    }
+
+    fn s_mut(&mut self) -> &mut T {
+        &mut self.x
+    }
+
+    fn t(&self) -> T {
+        self.y
+    }
+
+    fn t_mut(&mut self) -> &mut T {
+        &mut self.y
+    }
+}
+
+impl UVCoord<isize> for UVPoint {
     fn s(&self) -> isize {
         self.s
     }
@@ -42,7 +62,7 @@ impl UVCoord for UVPoint {
     }
 }
 
-impl UVCoord for (isize, isize) {
+impl UVCoord<isize> for (isize, isize) {
     fn s(&self) -> isize {
         self.0
     }
@@ -60,21 +80,21 @@ impl UVCoord for (isize, isize) {
     }
 }
 
-pub trait UVCoord: Clone {
-    fn s(&self) -> isize;
-    fn s_mut(&mut self) -> &mut isize;
+pub trait UVCoord<T: NumAssign>: Clone {
+    fn s(&self) -> T;
+    fn s_mut(&mut self) -> &mut T;
 
-    fn t(&self) -> isize;
-    fn t_mut(&mut self) -> &mut isize;
+    fn t(&self) -> T;
+    fn t_mut(&mut self) -> &mut T;
 
-    fn value_in_dir(&self, direction: Direction) -> isize {
+    fn value_in_dir(&self, direction: Direction) -> T {
         match direction {
             Direction::S => self.s(),
             Direction::T => self.t(),
         }
     }
 
-    fn add_in_dir(&mut self, direction: Direction, value: isize) {
+    fn add_in_dir(&mut self, direction: Direction, value: T) {
         match direction {
             Direction::S => *self.s_mut() += value,
             Direction::T => *self.t_mut() += value,
