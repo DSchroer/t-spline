@@ -68,17 +68,15 @@ pub fn extrude_edge(mesh: &mut impl ControlMeshMut, edge_id: EdgeID) -> Result<(
 
     let mut c = line.1.clone();
     c.add_in_dir(axis, offset);
-    let c_cp = mesh
+    let c_cp = *mesh
         .control_point(a_id)
-        .ok_or(ExtrudeError::MissingControlPoint())?
-        .clone();
+        .ok_or(ExtrudeError::MissingControlPoint())?;
 
     let mut d = line.0.clone();
     d.add_in_dir(axis, offset);
-    let d_cp = mesh
+    let d_cp = *mesh
         .control_point(b_id)
-        .ok_or(ExtrudeError::MissingControlPoint())?
-        .clone();
+        .ok_or(ExtrudeError::MissingControlPoint())?;
 
     let id_start = mesh.edges().len();
     let e1 = EdgeID(id_start);

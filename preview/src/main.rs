@@ -94,7 +94,7 @@ fn draw_uv_controls(
         commands.spawn((
             Mesh3d(point_mesh.clone()),
             MeshMaterial3d(point_mat.clone()),
-            Transform::from_xyz(p.s as f32, p.t as f32, 0. as f32),
+            Transform::from_xyz(p.s as f32, p.t as f32, 0_f32),
         ));
     }
 }

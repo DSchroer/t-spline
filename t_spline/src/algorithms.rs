@@ -30,10 +30,10 @@ pub fn cubic_basis_function<T: Numeric>(u: T, knots: &[isize; 5]) -> T {
     // 2. Initialize the 0th degree basis (step functions)
     // There are 4 intervals defined by 5 knots.
     let mut n = [T::zero(); 4];
-    for i in 0..4 {
+    for (i, item) in n.iter_mut().enumerate() {
         // Standard half-open interval check [t_i, t_{i+1})
         if u >= knots(i) && u < knots(i + 1) {
-            n[i] = T::one();
+            *item = T::one();
         }
     }
 

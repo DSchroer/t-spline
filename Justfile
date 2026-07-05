@@ -1,7 +1,10 @@
 # Justfile to manage project tasks
 
+export RUSTFLAGS := "-D warnings"
+
 ci: build build-no-std check-licenses
     cargo test --features fixed --locked
+    cargo check
     cargo clippy
     cargo fmt --check
 

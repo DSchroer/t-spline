@@ -31,7 +31,7 @@ use alloc::vec::Vec;
 use smallvec::SmallVec;
 use thiserror::Error;
 
-const INVALID_MESH: &'static str = "invalid mesh, validate to avoid panics";
+const INVALID_MESH: &str = "invalid mesh, validate to avoid panics";
 
 /// A local knot vector consisting of 5 knots for a cubic T-spline.
 ///
@@ -68,7 +68,7 @@ pub trait UVMesh {
     }
 
     fn next_edge(&self, edge: &HalfEdge) -> &HalfEdge {
-        &self.edge(edge.next).expect(INVALID_MESH)
+        self.edge(edge.next).expect(INVALID_MESH)
     }
 
     fn connected_edges(&self, id: VertID) -> impl ExactSizeIterator<Item = EdgeID> {
@@ -120,7 +120,7 @@ pub trait UVMesh {
     /// Compute all local knots
     fn local_knots(&self) -> Vec<LocalKnots> {
         (0..self.points().len())
-            .map(|i| VertID(i))
+            .map(VertID)
             .map(|v| self.infer_local_knots(v))
             .collect()
     }
@@ -146,7 +146,7 @@ pub trait UVMesh {
 
         loop {
             let next_id = current.next;
-            current = self.next_edge(&current);
+            current = self.next_edge(current);
             edges.push((next_id, current));
 
             if current.origin == start {
@@ -251,17 +251,17 @@ pub trait UVMesh {
         let mut results = [None; DEPTH];
         let mut next_v = Start::Vertex(start_v);
 
-        for i in 0..DEPTH {
+        for result in results.iter_mut().take(DEPTH) {
             match next_v {
                 Start::Vertex(v) => {
                     if let Some(found) = self.find_next_vertex_in_direction(v, axis, positive) {
                         let point = self.point(found).expect(INVALID_MESH);
-                        results[i] = point.value_in_dir(axis).into();
+                        *result = point.value_in_dir(axis).into();
                         next_v = Start::Vertex(found);
                     } else if let Some(point) =
                         self.trace_in_direction(self.point(v).expect(INVALID_MESH), axis, positive)
                     {
-                        results[i] = point.value_in_dir(axis).into();
+                        *result = point.value_in_dir(axis).into();
                         next_v = Start::Hit(point);
                     } else {
                         break;
@@ -269,7 +269,7 @@ pub trait UVMesh {
                 }
                 Start::Hit(p) => {
                     if let Some(point) = self.trace_in_direction(&p, axis, positive) {
-                        results[i] = point.value_in_dir(axis).into();
+                        *result = point.value_in_dir(axis).into();
                         next_v = Start::Hit(point);
                     } else {
                         break;
@@ -307,13 +307,13 @@ pub trait UVMesh {
         positive: bool,
     ) -> Option<UVPoint> {
         let edge = self.edge(start.outgoing_edge).expect(INVALID_MESH);
-        if let Some(i) = self.trace_for_edge_loop(&edge, start, axis, positive) {
+        if let Some(i) = self.trace_for_edge_loop(edge, start, axis, positive) {
             return Some(i);
         }
 
         if let Some(twin_id) = edge.twin {
             let twin = self.edge(twin_id).expect(INVALID_MESH);
-            if let Some(i) = self.trace_for_edge_loop(&twin, start, axis, positive) {
+            if let Some(i) = self.trace_for_edge_loop(twin, start, axis, positive) {
                 return Some(i);
             }
         }
@@ -353,15 +353,15 @@ pub trait UVMesh {
                     return Err(ValidationError::ZeroLengthEdge());
                 }
 
-                if let Some(twin_id) = edge.twin {
-                    if let Some(twin) = self.edge(twin_id) {
-                        let l = self.line(twin);
-                        if !l.is_orthogonal() {
-                            return Err(ValidationError::NonOrthogonal());
-                        }
-                        if l.length() == 0 {
-                            return Err(ValidationError::ZeroLengthEdge());
-                        }
+                if let Some(twin_id) = edge.twin
+                    && let Some(twin) = self.edge(twin_id)
+                {
+                    let l = self.line(twin);
+                    if !l.is_orthogonal() {
+                        return Err(ValidationError::NonOrthogonal());
+                    }
+                    if l.length() == 0 {
+                        return Err(ValidationError::ZeroLengthEdge());
                     }
                 }
             } else {
@@ -374,7 +374,7 @@ pub trait UVMesh {
                 return Err(ValidationError::InvalidOrigin());
             }
 
-            if let Some(_) = self.edge(edge.next) {
+            if self.edge(edge.next).is_some() {
                 // TODO: check next and prev
             } else {
                 return Err(ValidationError::InvalidNextEdge());
