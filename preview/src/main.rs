@@ -22,8 +22,8 @@ use bevy::{
     prelude::*,
 };
 use t_spline::control_mesh::{ControlMesh, ControlMeshMut};
+use t_spline::uv_mesh::UVMesh;
 use t_spline::uv_mesh::ids::{EdgeID, VertID};
-use t_spline::uv_mesh::{UVMesh, UVMeshMut};
 use t_spline::{Point3, TSpline};
 use t_spline_commands::align_control_points_to_cage::align_control_points_to_cage;
 use t_spline_commands::extrude_edge::extrude_edge;

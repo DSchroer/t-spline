@@ -62,20 +62,20 @@ impl UVCoord<isize> for UVPoint {
     }
 }
 
-impl UVCoord<isize> for (isize, isize) {
-    fn s(&self) -> isize {
+impl<T: Scalar + Copy + NumAssign> UVCoord<T> for (T, T) {
+    fn s(&self) -> T {
         self.0
     }
 
-    fn s_mut(&mut self) -> &mut isize {
+    fn s_mut(&mut self) -> &mut T {
         &mut self.0
     }
 
-    fn t(&self) -> isize {
+    fn t(&self) -> T {
         self.1
     }
 
-    fn t_mut(&mut self) -> &mut isize {
+    fn t_mut(&mut self) -> &mut T {
         &mut self.1
     }
 }

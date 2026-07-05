@@ -20,6 +20,7 @@ pub mod half_edge;
 pub mod ids;
 pub mod uv_point;
 
+use crate::Numeric;
 use crate::line::Line;
 use crate::uv_mesh::direction::Direction;
 use crate::uv_mesh::half_edge::HalfEdge;
@@ -190,10 +191,10 @@ pub trait UVMesh {
         faces.into_iter()
     }
 
-    fn contains_uv(&self, point: (isize, isize)) -> bool {
+    fn contains_uv<T: Numeric + 'static>(&self, point: impl UVCoord<T>) -> bool {
         let mut intersections = 0;
         for edge in self.edges() {
-            let line = self.line(edge);
+            let line: Line<T> = Line::from_isize(self.line(edge)).unwrap();
 
             if line.is_touching(&point) {
                 return true; // on the edge, must be inside shape

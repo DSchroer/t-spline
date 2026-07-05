@@ -14,10 +14,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+use crate::Numeric;
 use crate::uv_mesh::direction::Direction;
 use crate::uv_mesh::uv_point::{UVCoord, UVPoint};
-use nalgebra::{Scalar, Vector2};
-use num_traits::{Num, NumAssign};
+use nalgebra::Vector2;
+use num_traits::FromPrimitive;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Line<T>(Vector2<T>, Vector2<T>);
@@ -28,7 +29,17 @@ impl Line<isize> {
     }
 }
 
-impl<T: Scalar + Copy + Num + NumAssign + Ord + 'static> Line<T> {
+impl<T: FromPrimitive> Line<T> {
+    pub fn from_isize(v: Line<isize>) -> Option<Self> {
+        Self(
+            Vector2::new(T::from_isize(v.0.x)?, T::from_isize(v.0.y)?),
+            Vector2::new(T::from_isize(v.1.x)?, T::from_isize(v.1.y)?),
+        )
+        .into()
+    }
+}
+
+impl<T: Numeric + 'static> Line<T> {
     pub fn s0(&self) -> T {
         self.0.x
     }

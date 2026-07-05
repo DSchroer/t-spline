@@ -14,14 +14,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-use num_traits::ToPrimitive;
 use rayon::prelude::*;
+use t_spline::Point3;
 use t_spline::algorithms::subs;
 use t_spline::bounds::Bounded;
 use t_spline::control_mesh::ControlMesh;
 use t_spline::uv_mesh::ids::VertID;
 use t_spline::uv_mesh::{LocalKnots, ValidationError};
-use t_spline::{Numeric, Point3};
 
 pub fn tessellate<T: ControlMesh + Sync>(
     mesh: &T,
@@ -37,10 +36,7 @@ pub fn tessellate<T: ControlMesh + Sync>(
         .into_par_iter()
         .map(|i| {
             let p = bounds.interpolate(i, resolution);
-            if mesh.contains_uv((
-                p.0.round().to_isize().unwrap(),
-                p.1.round().to_isize().unwrap(),
-            )) {
+            if mesh.contains_uv((p.0, p.1)) {
                 subs(
                     mesh.control_points(),
                     bounds.interpolate(i, resolution),

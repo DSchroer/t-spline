@@ -37,21 +37,14 @@ pub trait Numeric:
     fn min(self, other: Self) -> Self {
         if self < other { self } else { other }
     }
-
-    fn delta() -> Self;
-    fn round(self) -> Self;
 }
+
+impl Numeric for isize {}
 
 macro_rules! impl_numeric_float {
     ($($t:ty),*) => {
         $(
-            impl Numeric for $t {
-                fn delta() -> Self { <$t>::EPSILON }
-
-                fn round(self) -> Self {
-                    <$t>::round(self)
-                }
-            }
+            impl Numeric for $t {}
         )*
     }
 }
@@ -69,11 +62,6 @@ mod fixed_impl {
                 where
                     fixed::$t<Frac>: fixed::traits::FixedSigned + Num + Signed + NumAssign + FromPrimitive + Bounded
                 {
-                    fn delta() -> Self { Self::DELTA }
-
-                    fn round(self) -> Self {
-                        self.round()
-                    }
                 }
             )*
         }
