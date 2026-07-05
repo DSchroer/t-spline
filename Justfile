@@ -2,11 +2,15 @@
 
 export RUSTFLAGS := "-D warnings"
 
-ci: build build-no-std check-licenses
+ci: git-precheck build build-no-std check-licenses
     cargo test --features fixed --locked
     cargo check
     cargo clippy
     cargo fmt --check
+
+git-precheck:
+    @git diff --quiet || { echo "Unstaged changes found"; exit 1; }
+    @git diff --quiet && test -z "$(git ls-files --others --exclude-standard)" || { echo "Working tree not clean"; exit 1; }
 
 example NAME:
     cargo run --example {{NAME}} > {{NAME}}.obj
