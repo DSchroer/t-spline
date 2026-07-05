@@ -56,6 +56,12 @@ pub trait UVMeshMut: UVMesh {
     fn edge_mut(&mut self, id: EdgeID) -> Option<&mut HalfEdge>;
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum Boundary {
+    Clamped,
+    Periodic,
+}
+
 pub trait UVMesh {
     fn points(&self) -> &[UVPoint];
     fn edges(&self) -> &[HalfEdge];
@@ -118,10 +124,10 @@ pub trait UVMesh {
     }
 
     /// Compute all local knots
-    fn local_knots(&self) -> Vec<LocalKnots> {
+    fn local_knots(&self, boundary: Boundary) -> Vec<LocalKnots> {
         (0..self.points().len())
             .map(VertID)
-            .map(|v| self.infer_local_knots(v))
+            .map(|v| self.infer_local_knots(v, boundary))
             .collect()
     }
 
@@ -210,14 +216,19 @@ pub trait UVMesh {
 
     /// Infers the local knot vectors for a specific control point.
     /// Returns (s_vector, t_vector).
-    fn infer_local_knots(&self, v_id: VertID) -> LocalKnots {
-        let s_knots = self.trace_local_knots(v_id, Direction::S);
-        let t_knots = self.trace_local_knots(v_id, Direction::T);
+    fn infer_local_knots(&self, v_id: VertID, boundary: Boundary) -> LocalKnots {
+        let s_knots = self.trace_local_knots(v_id, Direction::S, boundary);
+        let t_knots = self.trace_local_knots(v_id, Direction::T, boundary);
 
         LocalKnots { s_knots, t_knots }
     }
 
-    fn trace_local_knots(&self, v_id: VertID, direction: Direction) -> KnotVector {
+    fn trace_local_knots(
+        &self,
+        v_id: VertID,
+        direction: Direction,
+        boundary: Boundary,
+    ) -> KnotVector {
         let v = self.point(v_id).expect(INVALID_MESH);
         let c = match direction {
             Direction::S => v.s,
@@ -228,11 +239,16 @@ pub trait UVMesh {
         let pos: [_; 2] = self.trace_knots(v_id, direction, true); // s3, s4
         let neg: [_; 2] = self.trace_knots(v_id, direction, false); // s1, s0
 
-        match (neg[0], pos[0]) {
-            (Some(n_0), None) => [n_0, c, c, c, c],
-            (None, Some(p_0)) => [c, c, c, c, p_0],
-            (Some(n_0), Some(p_0)) => [neg[1].unwrap_or(n_0), n_0, c, p_0, pos[1].unwrap_or(p_0)],
-            (None, None) => unreachable!(),
+        match boundary {
+            Boundary::Clamped => match (neg[0], pos[0]) {
+                (Some(n_0), None) => [n_0, c, c, c, c],
+                (None, Some(p_0)) => [c, c, c, c, p_0],
+                (Some(n_0), Some(p_0)) => {
+                    [neg[1].unwrap_or(n_0), n_0, c, p_0, pos[1].unwrap_or(p_0)]
+                }
+                (None, None) => unreachable!(),
+            },
+            Boundary::Periodic => unimplemented!("periodic boundary not yet implemented"),
         }
     }
 
@@ -510,28 +526,28 @@ mod tests {
                 s_knots: [0, 0, 0, 0, 1],
                 t_knots: [0, 0, 0, 0, 1],
             },
-            mesh.infer_local_knots(VertID(0))
+            mesh.infer_local_knots(VertID(0), Boundary::Clamped)
         );
         assert_eq!(
             LocalKnots {
                 s_knots: [0, 1, 1, 1, 1],
                 t_knots: [0, 0, 0, 0, 1],
             },
-            mesh.infer_local_knots(VertID(1))
+            mesh.infer_local_knots(VertID(1), Boundary::Clamped)
         );
         assert_eq!(
             LocalKnots {
                 s_knots: [0, 0, 0, 0, 1],
                 t_knots: [0, 1, 1, 1, 1],
             },
-            mesh.infer_local_knots(VertID(3))
+            mesh.infer_local_knots(VertID(3), Boundary::Clamped)
         );
         assert_eq!(
             LocalKnots {
                 s_knots: [0, 1, 1, 1, 1],
                 t_knots: [0, 1, 1, 1, 1],
             },
-            mesh.infer_local_knots(VertID(2))
+            mesh.infer_local_knots(VertID(2), Boundary::Clamped)
         );
     }
 

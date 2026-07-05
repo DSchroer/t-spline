@@ -20,17 +20,18 @@ use t_spline::algorithms::subs;
 use t_spline::bounds::Bounded;
 use t_spline::control_mesh::ControlMesh;
 use t_spline::uv_mesh::ids::VertID;
-use t_spline::uv_mesh::{LocalKnots, ValidationError};
+use t_spline::uv_mesh::{Boundary, LocalKnots, ValidationError};
 
 pub fn tessellate<T: ControlMesh + Sync>(
     mesh: &T,
     resolution: usize,
+    boundary: Boundary,
 ) -> Result<Vec<Point3<T::Unit>>, ValidationError> {
     mesh.validate_control_mesh()?;
 
     let bounds = mesh.bounds();
 
-    let knot_cache: Vec<_> = knot_vectors(mesh);
+    let knot_cache: Vec<_> = knot_vectors(mesh, boundary);
 
     Ok((0..resolution * resolution)
         .into_par_iter()
@@ -50,10 +51,10 @@ pub fn tessellate<T: ControlMesh + Sync>(
         .collect())
 }
 
-fn knot_vectors(mesh: &(impl ControlMesh + Sync)) -> Vec<LocalKnots> {
+fn knot_vectors(mesh: &(impl ControlMesh + Sync), boundary: Boundary) -> Vec<LocalKnots> {
     (0..mesh.points().len())
         .into_par_iter()
-        .map(|v| mesh.infer_local_knots(VertID(v)))
+        .map(|v| mesh.infer_local_knots(VertID(v), boundary))
         .collect()
 }
 
@@ -66,7 +67,7 @@ mod tests {
     #[test]
     pub fn it_can_evaluate_points_on_square() {
         let square: TSpline = unit_square();
-        let knots = knot_vectors(&square);
+        let knots = knot_vectors(&square, Boundary::Clamped);
 
         assert_eq!(
             Some(Point3::new(0., 0., 0.)),
@@ -89,7 +90,7 @@ mod tests {
     #[test]
     pub fn it_can_tessellate_a_square() {
         let square: TSpline = unit_square();
-        let points = tessellate(&square, 2).unwrap();
+        let points = tessellate(&square, 2, Boundary::Clamped).unwrap();
 
         assert_eq!(4, points.len());
 
@@ -102,7 +103,7 @@ mod tests {
     #[test]
     pub fn it_can_evaluate_center() {
         let square: TSpline = unit_square();
-        let knots = knot_vectors(&square);
+        let knots = knot_vectors(&square, Boundary::Clamped);
         let center = subs(square.control_points(), (0.5, 0.5), &knots).unwrap();
 
         // Check components with epsilon tolerance

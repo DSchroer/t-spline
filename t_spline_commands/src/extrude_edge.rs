@@ -137,8 +137,8 @@ mod tests {
     use crate::unit_square::unit_square;
     use t_spline::TSpline;
     use t_spline::control_mesh::ControlMesh;
-    use t_spline::uv_mesh::UVMesh;
     use t_spline::uv_mesh::ids::VertID;
+    use t_spline::uv_mesh::{Boundary, UVMesh};
 
     #[test]
     fn it_extrudes_unit_square() {
@@ -165,6 +165,6 @@ mod tests {
         let mut mesh: TSpline = unit_square();
         extrude_edge(&mut mesh, EdgeID(2)).unwrap();
 
-        tessellate(&mesh, 10).unwrap();
+        tessellate(&mesh, 10, Boundary::Clamped).unwrap();
     }
 }
