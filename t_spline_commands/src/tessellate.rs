@@ -60,11 +60,12 @@ fn knot_vectors(mesh: &(impl ControlMesh + Sync)) -> Vec<LocalKnots> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::unit_square::unit_square;
     use t_spline::{Point3, TSpline};
 
     #[test]
     pub fn it_can_evaluate_points_on_square() {
-        let square = TSpline::new_unit_square();
+        let square: TSpline = unit_square();
         let knots = knot_vectors(&square);
 
         assert_eq!(
@@ -87,7 +88,7 @@ mod tests {
 
     #[test]
     pub fn it_can_tessellate_a_square() {
-        let square = TSpline::new_unit_square();
+        let square: TSpline = unit_square();
         let points = tessellate(&square, 2).unwrap();
 
         assert_eq!(4, points.len());
@@ -100,7 +101,7 @@ mod tests {
 
     #[test]
     pub fn it_can_evaluate_center() {
-        let square = TSpline::new_unit_square();
+        let square: TSpline = unit_square();
         let knots = knot_vectors(&square);
         let center = subs(square.control_points(), (0.5, 0.5), &knots).unwrap();
 

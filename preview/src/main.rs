@@ -28,9 +28,10 @@ use t_spline::{Point3, TSpline};
 use t_spline_commands::align_control_points_to_cage::align_control_points_to_cage;
 use t_spline_commands::extrude_edge::extrude_edge;
 use t_spline_commands::tessellate::tessellate;
+use t_spline_commands::unit_square::unit_square;
 
 fn main() -> Result<()> {
-    let mut spline = TSpline::new_unit_square();
+    let mut spline: TSpline = unit_square();
     extrude_edge(&mut spline, EdgeID(0))?;
     extrude_edge(&mut spline, EdgeID(1))?;
     extrude_edge(&mut spline, EdgeID(2))?;

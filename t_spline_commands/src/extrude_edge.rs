@@ -134,6 +134,7 @@ pub fn extrude_edge(mesh: &mut impl ControlMeshMut, edge_id: EdgeID) -> Result<(
 mod tests {
     use super::*;
     use crate::tessellate::tessellate;
+    use crate::unit_square::unit_square;
     use t_spline::TSpline;
     use t_spline::control_mesh::ControlMesh;
     use t_spline::uv_mesh::UVMesh;
@@ -141,7 +142,7 @@ mod tests {
 
     #[test]
     fn it_extrudes_unit_square() {
-        let mut mesh = TSpline::new_unit_square();
+        let mut mesh: TSpline = unit_square();
 
         extrude_edge(&mut mesh, EdgeID(2)).unwrap();
 
@@ -161,7 +162,7 @@ mod tests {
 
     #[test]
     fn it_tessellates_extrusion() {
-        let mut mesh = TSpline::new_unit_square();
+        let mut mesh: TSpline = unit_square();
         extrude_edge(&mut mesh, EdgeID(2)).unwrap();
 
         tessellate(&mesh, 10).unwrap();

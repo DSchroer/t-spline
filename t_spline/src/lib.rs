@@ -34,7 +34,6 @@ use crate::uv_mesh::uv_point::UVPoint;
 use crate::uv_mesh::{UVMesh, UVMeshMut};
 use alloc::vec::Vec;
 pub use nalgebra::{Point3, Vector4};
-use num_traits::ToPrimitive;
 
 #[derive(Debug, Default, Clone)]
 pub struct TSpline {
@@ -88,41 +87,47 @@ impl UVMesh for TSpline {
     }
 }
 
-impl TSpline {
-    pub fn new_unit_square() -> Self {
-        let mut mesh = TSpline {
-            points: Vec::with_capacity(4),
-            edges: Vec::with_capacity(4),
-            control_points: Vec::with_capacity(4),
-        };
+#[cfg(test)]
+mod test {
+    use super::*;
+    use num_traits::ToPrimitive;
 
-        // 1. Define 4 Corner Vertices
-        let coords: [(isize, isize); _] = [(0, 0), (1, 0), (1, 1), (0, 1)];
-        for (i, (s, t)) in coords.into_iter().enumerate() {
-            mesh.points.push(UVPoint {
-                s,
-                t,
-                outgoing_edge: EdgeID(i), // Inner edges are 0..4
-            });
+    impl TSpline {
+        pub fn new_unit_square() -> Self {
+            let mut mesh = TSpline {
+                points: Vec::with_capacity(4),
+                edges: Vec::with_capacity(4),
+                control_points: Vec::with_capacity(4),
+            };
 
-            mesh.control_points.push(Vector4::new(
-                s.to_f64().unwrap(),
-                t.to_f64().unwrap(),
-                0f64,
-                1f64,
-            ));
+            // 1. Define 4 Corner Vertices
+            let coords: [(isize, isize); _] = [(0, 0), (1, 0), (1, 1), (0, 1)];
+            for (i, (s, t)) in coords.into_iter().enumerate() {
+                mesh.points.push(UVPoint {
+                    s,
+                    t,
+                    outgoing_edge: EdgeID(i), // Inner edges are 0..4
+                });
+
+                mesh.control_points.push(Vector4::new(
+                    s.to_f64().unwrap(),
+                    t.to_f64().unwrap(),
+                    0f64,
+                    1f64,
+                ));
+            }
+
+            // 2. Define 4 inner Half-Edges in a CCW loop
+            for i in 0..4 {
+                mesh.edges.push(HalfEdge {
+                    origin: VertID(i),
+                    next: EdgeID((i + 1) % 4),
+                    prev: EdgeID((i + 3) % 4),
+                    twin: None,
+                });
+            }
+
+            mesh
         }
-
-        // 2. Define 4 inner Half-Edges in a CCW loop
-        for i in 0..4 {
-            mesh.edges.push(HalfEdge {
-                origin: VertID(i),
-                next: EdgeID((i + 1) % 4),
-                prev: EdgeID((i + 3) % 4),
-                twin: None,
-            });
-        }
-
-        mesh
     }
 }

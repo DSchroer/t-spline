@@ -19,6 +19,7 @@ use t_spline::control_mesh::ControlMesh;
 pub mod align_control_points_to_cage;
 pub mod extrude_edge;
 pub mod tessellate;
+pub mod unit_square;
 
 pub trait Op {
     type Output;
