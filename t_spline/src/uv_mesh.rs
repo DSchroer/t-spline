@@ -50,6 +50,12 @@ pub struct LocalKnots {
     pub t_knots: KnotVector,
 }
 
+#[derive(Debug, Clone)]
+pub enum TracePoint {
+    Vertex(VertID),
+    Hit(UVPoint),
+}
+
 pub trait UVMeshMut: UVMesh {
     fn push_point(&mut self, point: UVPoint) -> VertID;
     fn push_edge(&mut self, edge: HalfEdge) -> EdgeID;
@@ -236,8 +242,8 @@ pub trait UVMesh {
         };
 
         // Trace two knots in each of the four cardinal directions
-        let pos: [_; 2] = self.trace_knots(v_id, direction, true); // s3, s4
-        let neg: [_; 2] = self.trace_knots(v_id, direction, false); // s1, s0
+        let pos: [_; 2] = self.trace_knots(TracePoint::Vertex(v_id), direction, true); // s3, s4
+        let neg: [_; 2] = self.trace_knots(TracePoint::Vertex(v_id), direction, false); // s1, s0
 
         match boundary {
             Boundary::Clamped => match (neg[0], pos[0]) {
@@ -255,38 +261,31 @@ pub trait UVMesh {
     /// Traces a ray from start_v in a direction to find the next two orthogonal knots.
     fn trace_knots<const DEPTH: usize>(
         &self,
-        start_v: VertID,
+        mut start_v: TracePoint,
         axis: Direction,
         positive: bool,
     ) -> [Option<isize>; DEPTH] {
-        enum Start {
-            Vertex(VertID),
-            Hit(UVPoint),
-        }
-
         let mut results = [None; DEPTH];
-        let mut next_v = Start::Vertex(start_v);
-
         for result in results.iter_mut().take(DEPTH) {
-            match next_v {
-                Start::Vertex(v) => {
+            match start_v {
+                TracePoint::Vertex(v) => {
                     if let Some(found) = self.find_next_vertex_in_direction(v, axis, positive) {
                         let point = self.point(found).expect(INVALID_MESH);
                         *result = point.value_in_dir(axis).into();
-                        next_v = Start::Vertex(found);
+                        start_v = TracePoint::Vertex(found);
                     } else if let Some(point) =
                         self.trace_in_direction(self.point(v).expect(INVALID_MESH), axis, positive)
                     {
                         *result = point.value_in_dir(axis).into();
-                        next_v = Start::Hit(point);
+                        start_v = TracePoint::Hit(point);
                     } else {
                         break;
                     }
                 }
-                Start::Hit(p) => {
+                TracePoint::Hit(p) => {
                     if let Some(point) = self.trace_in_direction(&p, axis, positive) {
                         *result = point.value_in_dir(axis).into();
-                        next_v = Start::Hit(point);
+                        start_v = TracePoint::Hit(point);
                     } else {
                         break;
                     }
@@ -513,7 +512,7 @@ mod tests {
     fn it_can_trace_direct_knots() {
         let mesh = TSpline::new_unit_square();
 
-        let trace = mesh.trace_knots(VertID(0), Direction::S, true);
+        let trace = mesh.trace_knots(TracePoint::Vertex(VertID(0)), Direction::S, true);
         assert_eq!([Some(1), None], trace);
     }
 
