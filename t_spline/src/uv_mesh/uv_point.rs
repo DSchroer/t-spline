@@ -26,6 +26,12 @@ pub struct UVPoint {
     pub outgoing_edge: EdgeID,
 }
 
+impl UVPoint {
+    pub fn st(&self) -> (isize, isize) {
+        (self.s, self.t)
+    }
+}
+
 impl<T: Scalar + Copy + NumAssign> UVCoord<T> for Vector2<T> {
     fn s(&self) -> T {
         self.x

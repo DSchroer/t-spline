@@ -242,8 +242,8 @@ pub trait UVMesh {
         };
 
         // Trace two knots in each of the four cardinal directions
-        let pos: [_; 2] = self.trace_knots(TracePoint::Vertex(v_id), direction, true); // s3, s4
-        let neg: [_; 2] = self.trace_knots(TracePoint::Vertex(v_id), direction, false); // s1, s0
+        let pos: [_; 2] = self.trace_knots(TracePoint::Vertex(v_id), direction, true, false); // s3, s4
+        let neg: [_; 2] = self.trace_knots(TracePoint::Vertex(v_id), direction, false, false); // s1, s0
 
         match boundary {
             Boundary::Clamped => match (neg[0], pos[0]) {
@@ -264,6 +264,7 @@ pub trait UVMesh {
         mut start_v: TracePoint,
         axis: Direction,
         positive: bool,
+        wrap: bool,
     ) -> [Option<isize>; DEPTH] {
         let mut results = [None; DEPTH];
         for result in results.iter_mut().take(DEPTH) {
@@ -273,19 +274,35 @@ pub trait UVMesh {
                         let point = self.point(found).expect(INVALID_MESH);
                         *result = point.value_in_dir(axis).into();
                         start_v = TracePoint::Vertex(found);
-                    } else if let Some(point) =
-                        self.trace_in_direction(self.point(v).expect(INVALID_MESH), axis, positive)
-                    {
+                    } else if let Some(point) = self.trace_next_in_direction(
+                        self.point(v).expect(INVALID_MESH),
+                        axis,
+                        positive,
+                    ) {
                         *result = point.value_in_dir(axis).into();
                         start_v = TracePoint::Hit(point);
+                    } else if wrap
+                        && let Some(wrap_point) = self.trace_last_in_direction(
+                            self.point(v).expect(INVALID_MESH),
+                            axis,
+                            !positive,
+                        )
+                    {
+                        *result = wrap_point.value_in_dir(axis).into();
+                        start_v = TracePoint::Hit(wrap_point);
                     } else {
                         break;
                     }
                 }
                 TracePoint::Hit(p) => {
-                    if let Some(point) = self.trace_in_direction(&p, axis, positive) {
+                    if let Some(point) = self.trace_next_in_direction(&p, axis, positive) {
                         *result = point.value_in_dir(axis).into();
                         start_v = TracePoint::Hit(point);
+                    } else if wrap
+                        && let Some(wrap_point) = self.trace_last_in_direction(&p, axis, !positive)
+                    {
+                        *result = wrap_point.value_in_dir(axis).into();
+                        start_v = TracePoint::Hit(wrap_point);
                     } else {
                         break;
                     }
@@ -315,7 +332,7 @@ pub trait UVMesh {
         None
     }
 
-    fn trace_in_direction(
+    fn trace_next_in_direction(
         &self,
         start: &UVPoint,
         axis: Direction,
@@ -334,6 +351,34 @@ pub trait UVMesh {
         }
 
         None
+    }
+
+    /// Find the last ray intersection. This is the opposite of [UVMesh::trace_next_in_direction]
+    fn trace_last_in_direction(
+        &self,
+        start: &UVPoint,
+        axis: Direction,
+        positive: bool,
+    ) -> Option<UVPoint> {
+        let mut distance = 0;
+        let mut point = None;
+
+        for edge in self.edges() {
+            let line = self.line(edge);
+            if line.is_touching(start) && distance == 0 {
+                point = Some(start.clone());
+            }
+
+            if let Some(cross) = line.intersection(start, axis, positive) {
+                let cross_distance = Line::from_uv_points(&cross, start).length();
+                if cross_distance > distance {
+                    distance = cross_distance;
+                    point = Some(cross);
+                }
+            }
+        }
+
+        point
     }
 
     /// Helper to find the next vertex along the mesh edges in a specific direction.
@@ -512,7 +557,7 @@ mod tests {
     fn it_can_trace_direct_knots() {
         let mesh = TSpline::new_unit_square();
 
-        let trace = mesh.trace_knots(TracePoint::Vertex(VertID(0)), Direction::S, true);
+        let trace = mesh.trace_knots(TracePoint::Vertex(VertID(0)), Direction::S, true, false);
         assert_eq!([Some(1), None], trace);
     }
 
@@ -555,5 +600,36 @@ mod tests {
         let mesh = TSpline::new_unit_square();
 
         assert_eq!(1, mesh.faces().count());
+    }
+
+    #[test]
+    fn it_traces_last_in_direction() {
+        let mesh = TSpline::new_unit_square();
+
+        assert_eq!(
+            (1, 0),
+            mesh.trace_last_in_direction(&mesh.points[0], Direction::S, true)
+                .unwrap()
+                .st()
+        );
+        assert_eq!(
+            (0, 0),
+            mesh.trace_last_in_direction(&mesh.points[0], Direction::S, false)
+                .unwrap()
+                .st()
+        );
+
+        assert_eq!(
+            (0, 1),
+            mesh.trace_last_in_direction(&mesh.points[0], Direction::T, true)
+                .unwrap()
+                .st()
+        );
+        assert_eq!(
+            (0, 0),
+            mesh.trace_last_in_direction(&mesh.points[0], Direction::T, false)
+                .unwrap()
+                .st()
+        );
     }
 }
